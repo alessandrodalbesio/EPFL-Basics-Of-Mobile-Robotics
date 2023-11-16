@@ -1,3 +1,4 @@
 numpy
 ipykernel
 tdmclient
+opencv-python
