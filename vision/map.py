@@ -10,18 +10,45 @@ class Map:
         obstacles (list): List of obstacles. This is a numpy array of numpy arrays of shape (n,2) where n is the number of vertices of the obstacle given in clockwise order. 
                           The obstacle are already enlarged by the radius of the robot. All the vertices are expressed in cm.
     """
-    def __init__(self,h,w,obstacles):
-        # Dimensions of the environment
-        self.h = h
-        self.w = w
+    h_px = 120
+    h = 21.0
+    w_px = 120
+    w = 29.5
+    obstacles = []
 
-        # Obstacles of the environment
-        self.obstacles = obstacles
+
+    def __init__(self):
+        self.findObstacles()
+
+    def findObstacles(self):
+        self.obstacles = []
+        self.obstacles.append(np.array([[20,20],[0,30],[50,50]]))
+        self.obstacles.append(np.array([[40,10],[80,40],[70,10]]))
+        self.obstacles.append(np.array([[0,60],[60,60],[20,80]]))
+        self.obstacles.append(np.array([[100,60],[100,100],[80,70],[80,60]]))
+
+    def getInitialFinalPoints(self):
+        """Get the initial and final points of the environment
+
+        Returns:
+            np.array([x,y]): Initial point [cm]
+            np.array([x,y]): Final point [cm]
+        """
+        return np.array([5,5]),np.array([40,90])
+
+    def cameraRobotSensing(self):
+        """Get the position and the otientation of the robot. The position and orientation is refreshed at a rate of 30Hz
+
+        Returns:
+            np.array([x,y]): Position of the robot [cm]
+            np.array([x,y]): Orientation of the robot (unit vector)
+        """
+        return np.array([0,0]), np.array([0,1])
 
     def plot(self, initialPoint=None, finalPoint=None, path=None):
         """Plot the map and the obstacles"""
         
-        # Create a figure
+        # Create a figure with the same size as the map
         fig = plt.figure()
 
         # Plot a geometric shape with the coordinates of the obstacles
@@ -44,40 +71,6 @@ class Map:
 
         # Set the limits of the plot
         plt.axis('equal')
-        plt.xlim(0,self.w)
-        plt.ylim(0,self.h)
+        plt.xlim(0,self.w_px)
+        plt.ylim(0,self.h_px)
         plt.show()
-
-
-def createMap():
-    """Create the map of the environment
-
-    Returns:
-        Map: Get a map object containing the information about the env size and the obstacles 
-    """
-    h = 100
-    w = 100
-    obstacles = []
-    obstacles.append(np.array([[20,20],[0,30],[50,50]]))
-    obstacles.append(np.array([[40,10],[80,40],[70,10]]))
-    obstacles.append(np.array([[0,60],[60,60],[20,80]]))
-    obstacles.append(np.array([[100,60],[100,100],[80,70],[80,60]]))
-    return Map(h,w,obstacles)
-
-def getInitialFinalPoints():
-    """Get the initial and final points of the environment
-
-    Returns:
-        np.array([x,y]): Initial point [cm]
-        np.array([x,y]): Final point [cm]
-    """
-    return np.array([5,5]),np.array([40,90])
-
-def cameraRobotSensing():
-    """Get the position and the otientation of the robot. The position and orientation is refreshed at a rate of 30Hz
-
-    Returns:
-        np.array([x,y]): Position of the robot [cm]
-        np.array([x,y]): Orientation of the robot (unit vector)
-    """
-    return np.array([0,0]), np.array([0,1])
