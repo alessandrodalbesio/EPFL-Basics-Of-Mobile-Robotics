@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import generic modules
 import numpy as np
 from utils.settings import h_px, w_px,IDS_CORNER_MARKERS
+from utils.logger import logger
 
 # Import camera modules
 import cv2
@@ -37,6 +38,10 @@ class Camera:
         self._robotEstimatedPosition = None
         self._robotEstimatedOrientation = None
 
+        # Log
+        logger.info("Camera initialized")
+
+
     def fieldAreaEstimation(self):
         """ Method that estimate based on the corner markers the region of the fieldArea """
         # Create the marker object
@@ -55,11 +60,17 @@ class Camera:
         self.detectedMarkers = {}
         for key in self.markersRegion.keys():
             self.detectedMarkers[key] = self._originToCutFrame(self.markersRegion[key]["points"])
+        
+        # Log
+        logger.info("Field area estimated")
 
     def release(self):
         """ Clear the camera """
         self.camera.release()
         cv2.destroyAllWindows()
+
+        # Log
+        logger.info("Camera released")
 
     def calibration(self):
         """ Method to calibrate the camera
@@ -166,7 +177,20 @@ class Camera:
         self._robotEstimatedPosition = value
 
     # Estimated orientation
-    # [TODO]
+    @property
+    def robotEstimatedOrientation(self):
+        # Return the estimated Orientation
+        return self._robotEstimatedOrientation
+    
+    @robotEstimatedOrientation.setter
+    def robotEstimatedOrientation(self,value):
+        """ Set the estimated Orientation
+
+        Args:
+            value (np.array((2,))): Estimated Orientation
+        """
+        # Set the estimated Orientation
+        self._robotEstimatedOrientation = value
 
     # Display method
     def display(self):
@@ -183,25 +207,29 @@ class Camera:
             for obstacle in self._obstacles:
                 for p in obstacle:
                     p = tuple(p.astype(int))
-                    cv2.circle(frameCut,p,5,(0,0,255),10)
+                    cv2.circle(frameCut,p,5,(0,0,255),5)
 
         # Display the start position
         if self._startPosition is not None:
             p = tuple(self._startPosition.astype(int))
-            cv2.circle(frameCut,p,5,(0,255,0),10)
+            cv2.circle(frameCut,p,5,(0,255,0),5)
             cv2.putText(frameCut,"Start position",p,cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2,cv2.LINE_AA)
 
         # Display the goal position
         if self._goalPosition is not None:
             p = tuple(self._goalPosition.astype(int))
-            cv2.circle(frameCut,p,5,(0,255,0),10)
+            cv2.circle(frameCut,p,5,(0,255,0),5)
             cv2.putText(frameCut,"Goal position",p,cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2,cv2.LINE_AA)
 
         # Display the estimated position
-        if self._robotEstimatedPosition is not None:
+        if self._robotEstimatedPosition is not None and self._robotEstimatedOrientation is not None:
             p = tuple(self._robotEstimatedPosition.astype(int))
-            cv2.circle(frameCut,p,5,(0,255,0),10)
-            
+            cv2.circle(frameCut,p,5,(255,0,0),5)
+
+            o = self._robotEstimatedOrientation
+            o = (p[0]+int(50*o[0]),p[1]+int(50*o[1]))
+            cv2.arrowedLine(frameCut,p,o,(255,0,0),5)
+
         # Display the frame
         cv2.imshow("Frame cut",frameCut)
         return cv2.waitKey(1) & 0xFF == ord('q')

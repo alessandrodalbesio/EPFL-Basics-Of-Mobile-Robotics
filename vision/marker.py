@@ -1,5 +1,6 @@
 # Append the path of the parent directory
 import sys, os, shutil
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import generic modules
@@ -11,7 +12,7 @@ from utils.logger import logger
 import cv2
 
 # Import the ids of the markers from the setting file
-from utils.settings import ID_GOAL_MARKER, IDS_CORNER_MARKERS
+from utils.settings import ID_GOAL_MARKER, ID_ROBOT_MARKER, IDS_CORNER_MARKERS
 
 # Class definition
 class Marker:
@@ -21,7 +22,8 @@ class Marker:
         # Define the labels
         self.labels = []
         self.labels += IDS_CORNER_MARKERS
-        self.labels.append(ID_GOAL_MARKER)        
+        self.labels.append(ID_GOAL_MARKER)
+        self.labels.append(ID_ROBOT_MARKER)       
 
     def generate(self):
         """ Generate the markers based on the LABELS constant and save them in A4 paper format so that they can be printed """
@@ -86,11 +88,11 @@ class Marker:
             cv2.imwrite(file_name,imgs[i])
 
         # Display the log
-        logger.debug(f"Markers generated successfully and saved in the file at {file_name}")
+        logger.info(f"Markers generated successfully and saved in the file at {file_name}")
 
 
 
-    def detect(self,cam,n_iterations=50):  
+    def detect(self,cam,n_iterations=10):  
         """ Detect the markers in the image and return the corners of the markers found
 
         Args:
@@ -156,7 +158,19 @@ class Marker:
         
         return avg_corners
 
+    def calibrate(self, cam):        
+        # Get the image
+        frame,_ = cam.get_frame()
 
-if __name__ == "__main__":
-    marker = Marker()
-    marker.generate()
+        # Detect the markers
+        parameters = cv2.aruco.DetectorParameters()
+        detector = cv2.aruco.ArucoDetector(self.TYPE, parameters)
+
+        # Detect the markers
+        detected_corners, detected_ids, _ = detector.detectMarkers(frame)
+
+        # Display the frame and the markers
+        frame = cv2.aruco.drawDetectedMarkers(frame, detected_corners, detected_ids)
+        cv2.imshow("Frame",frame)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
