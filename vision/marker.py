@@ -1,21 +1,27 @@
-import cv2
+# Append the path of the parent directory
+import sys, os, shutil
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import generic modules
 import numpy as np
 from math import ceil
-# Import the logger file in ../utils
-import sys
-import shutil
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import logger
 
+# Import vision modules
+import cv2
+
+# Import the ids of the markers from the setting file
+from utils.settings import ID_GOAL_MARKER, IDS_CORNER_MARKERS
+
+# Class definition
 class Marker:
     TYPE = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
-    LABELS = {"LT": 0, "RT": 1, "LB": 2, "RB": 3,}
 
     def __init__(self):
-        pass
-
-
+        # Define the labels
+        self.labels = []
+        self.labels += IDS_CORNER_MARKERS
+        self.labels.append(ID_GOAL_MARKER)        
 
     def generate(self):
         """ Generate the markers based on the LABELS constant and save them in A4 paper format so that they can be printed """
@@ -23,18 +29,19 @@ class Marker:
         # Parameters
         a4_width = int(8.27 * 300)
         a4_height = int(11.69 * 300)
-        img_size = 500 # The markers are 600x600 pixels
+        marker_size = 750 # Size of the marker
         margin = 100 # The margin between the markers and the borders of the A4 paper
 
         # Compute the padding between the images
-        img_per_row = (a4_width-2*margin) // img_size
-        horizontal_padding = (a4_width - 2*margin - img_per_row*img_size) // (img_per_row-1)
+        min_horizontal_padding = 25
+        img_per_row = (a4_width-2*margin-min_horizontal_padding) // marker_size
+        horizontal_padding = (a4_width - 2*margin - img_per_row*marker_size) // (img_per_row-1)
 
         # Create an empty white image with the size of an A4 paper (assume that all the markers can fit in an A4 paper)
         vertical_padding = 50
         max_rows = 0
-        while (a4_height-2*margin-(max_rows+1)*img_size-max_rows*vertical_padding) > 0: max_rows += 1
-        number_of_rows = ceil(len(Marker.LABELS) / img_per_row)
+        while (a4_height-2*margin-(max_rows+1)*marker_size-max_rows*vertical_padding) > 0: max_rows += 1
+        number_of_rows = ceil(len(self.labels) / img_per_row)
         imgs = []
         for i in range(ceil(number_of_rows / max_rows)):
             imgs.append(np.ones((a4_height,a4_width,3),dtype=np.uint8) * 255)
@@ -42,9 +49,9 @@ class Marker:
         # Iterate through the markers and add them to the images
         page = 0
         rows_counter = 0
-        for i in range(len(self.LABELS)):
+        for i in self.labels:
             # Generate the marker
-            marker = cv2.aruco.generateImageMarker(self.TYPE, i, img_size)
+            marker = cv2.aruco.generateImageMarker(self.TYPE, i, marker_size)
             # Convert the marker to a numpy array
             marker = np.array(marker)
             # Convert the marker to an image
@@ -54,10 +61,10 @@ class Marker:
             row = rows_counter
             col = i % img_per_row
             # Compute the position of the marker in the image
-            x = margin + col*(img_size+horizontal_padding)
-            y = margin + row*(img_size+vertical_padding)
+            x = margin + col*(marker_size+horizontal_padding)
+            y = margin + row*(marker_size+vertical_padding)
             # Add the marker to the image
-            imgs[page][y:y+img_size,x:x+img_size] = marker
+            imgs[page][y:y+marker_size,x:x+marker_size] = marker
             
             # Update the page and the rows_counter
             if col == img_per_row-1:
@@ -83,27 +90,28 @@ class Marker:
 
 
 
-    def detect(self,stream = None):
-        N_ITERATIONS = 250
+    def detect(self,cam,n_iterations=50):  
+        """ Detect the markers in the image and return the corners of the markers found
 
-        # Create a VideoCapture object if no stream is given
-        if stream == None:
-            cam = cv2.VideoCapture(0)
-        else:
-            cam = stream
+        Args:
+            cam (Camera): The camera object
+            n_iterations (int): The number of iterations to average the corners found
         
+        Returns:
+            avg_corners (dict): A dictionary containing the corners of the markers found
+        """      
         corners = []
         ids = []
-
+        unique_ids = []
+        
         # Iterate through the frames and average the corners found
-        for i in range(N_ITERATIONS):
+        for i in range(n_iterations):
             # Get the image
-            _, frame = cam.read()
+            frame,_ = cam.get_frame()
 
             # Detect the markers
-            dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
             parameters = cv2.aruco.DetectorParameters()
-            detector = cv2.aruco.ArucoDetector(dictionary, parameters)
+            detector = cv2.aruco.ArucoDetector(self.TYPE, parameters)
 
             # Detect the markers
             detected_corners, detected_ids, _ = detector.detectMarkers(frame)
@@ -119,14 +127,16 @@ class Marker:
             corners.append(detected_corners)
             ids.append(detected_ids)
 
-
+            for id in detected_ids:
+                if id not in unique_ids:
+                    unique_ids.append(id)
+        
         # Create the variable to contains the information
-        ID_FILTERED = [0,1,2,3]
         avg_corners = {}
-        for id_filtered in ID_FILTERED:
-            avg_corners[id_filtered] = {
-                "x": 0,
-                "y": 0,
+        # Find the unique indeces in ids
+        for id in unique_ids:
+            avg_corners[id] = {
+                "points": np.zeros((4,2)),
                 "num_samples": 0
             }
 
@@ -134,51 +144,19 @@ class Marker:
         for i in range(len(corners)):
             if corners[i] is not None:
                 for j in range(len(corners[i])):
-                    if ids[i][j] in ID_FILTERED:
-                        avg_corners[ids[i][j]]["x"] += corners[i][j][0][0]
-                        avg_corners[ids[i][j]]["y"] += corners[i][j][0][1]
-                        avg_corners[ids[i][j]]["num_samples"] += 1
+                    avg_corners[ids[i][j]]["points"] += corners[i][j]
+                    avg_corners[ids[i][j]]["num_samples"] += 1
 
-        # Reorder avg_corners based on the ids
+        # Reorder avg_corners in ascending order based on the key
         avg_corners = {k: v for k, v in sorted(avg_corners.items(), key=lambda item: item[0])}
 
-        if stream == None:
-            frame_copy = frame.copy()
-            # Display on the last frame a point where the marker is
-            for id_filtered in ID_FILTERED:
-                if avg_corners[id_filtered]["num_samples"] > 0:
-                    avg_corners[id_filtered]["x"] /= avg_corners[id_filtered]["num_samples"]
-                    avg_corners[id_filtered]["y"] /= avg_corners[id_filtered]["num_samples"]
-                    cv2.circle(frame, (int(avg_corners[id_filtered]["x"]), int(avg_corners[id_filtered]["y"])), 5, (0, 0, 255), -1)
-                    cv2.putText(frame, str(id_filtered), (int(avg_corners[id_filtered]["x"]), int(avg_corners[id_filtered]["y"])), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-
-            h = 210*4
-            w = 295*4
-            origin_points = [[corner["x"],corner["y"]] for corner in avg_corners.values() if corner["num_samples"] > 0]
-            print(origin_points)
-            target_points = [[w,h],[0,h],[0,0],[w,0]]
-            matrix = cv2.getPerspectiveTransform(np.float32(origin_points),np.float32(target_points))
-            transformed = cv2.warpPerspective(frame_copy,matrix,(w,h))
-            op = np.float32([300,175])
-            tp = matrix @ np.float32([300,175,1]).reshape(3,1)
-            # Display tp
-            # Flip the x axis of the transformed image
-            transformed = cv2.flip(transformed,1)
-            cv2.circle(transformed, (int(tp[0]), int(tp[1])), 5, (0, 0, 255), -1)
-            cv2.imshow("Transformed",transformed)
-
-            # Display the frame
-            # Add the point [300,175]
-            cv2.circle(frame, (300, 175), 5, (0, 0, 255), -1)
-            cv2.imshow("Frame",frame)
-            cv2.waitKey(0)
-            
-            # Release the camera            
-            cam.release()
-            cv2.destroyAllWindows()
+        # Average all the elements in avg_corners
+        for id in avg_corners.keys():
+            avg_corners[id]["points"] //= avg_corners[id]["num_samples"]
         
-        
+        return avg_corners
+
 
 if __name__ == "__main__":
     marker = Marker()
-    marker.detect()
+    marker.generate()
