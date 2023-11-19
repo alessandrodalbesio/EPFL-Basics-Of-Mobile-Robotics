@@ -1,6 +1,5 @@
 # Append the path of the parent directory
 import sys, os, shutil
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import generic modules
@@ -101,7 +100,7 @@ class Marker:
         
         Returns:
             avg_corners (dict): A dictionary containing the corners of the markers found
-        """      
+        """
         corners = []
         ids = []
         unique_ids = []
@@ -157,20 +156,3 @@ class Marker:
             avg_corners[id]["points"] //= avg_corners[id]["num_samples"]
         
         return avg_corners
-
-    def calibrate(self, cam):        
-        # Get the image
-        frame,_ = cam.get_frame()
-
-        # Detect the markers
-        parameters = cv2.aruco.DetectorParameters()
-        detector = cv2.aruco.ArucoDetector(self.TYPE, parameters)
-
-        # Detect the markers
-        detected_corners, detected_ids, _ = detector.detectMarkers(frame)
-
-        # Display the frame and the markers
-        frame = cv2.aruco.drawDetectedMarkers(frame, detected_corners, detected_ids)
-        cv2.imshow("Frame",frame)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()

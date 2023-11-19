@@ -55,7 +55,6 @@ class Map:
         self.camera = camera
         self.nObstacles = numberOfObstacles
         self.robotSize = robotSize
-        self.findObstacles()
 
     def convertToPx(self, points):
         """ Convert the coordinates from cm to pixels
@@ -97,10 +96,6 @@ class Map:
         _, mask = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY) # [TODO] Value still to be tuned
         # Invert the mask
         mask = cv2.bitwise_not(mask)
-        # Set to black the points inside the converted_points
-        for i in self.camera.detectedMarkers.keys():
-            converted_points = np.array([self.camera.detectedMarkers[i]],dtype=np.int32)
-            cv2.fillPoly(mask,converted_points,(0,0,0))
         # Create a temporary binary image
         temp = np.zeros_like(mask)
         # Find the contours of the binary image
@@ -158,29 +153,6 @@ class Map:
             # Add the vertices to the list of obstacles
             self.obstacles.append(points)
 
-        # Display self.obstacles, self.obstacles_original and frame cut in grey scale
-        for obstacle in self.obstacles:
-            plot_points = obstacle.copy()
-            # Add the last point to close the shape
-            plot_points = np.vstack((plot_points,plot_points[0]))
-            # Plot the shape
-            plt.plot(plot_points[:,0],plot_points[:,1],color='black', linewidth=2, marker='o', markersize=2, markerfacecolor='black', markeredgecolor='black')
-        for obstacle in self.obstacles_original:
-            plot_points = obstacle.copy()
-            # Add the last point to close the shape
-            plot_points = np.vstack((plot_points,plot_points[0]))
-            # Plot the shape
-            plt.plot(plot_points[:,0],plot_points[:,1],color='red',linestyle='--',linewidth=0.5,marker='o',markersize=2)
-        # Invert the y axis
-        # cv2.imshow("Frame cut",frameCut)
-        # Plot the frame cut
-        # plt.imshow(frameCut,cmap='gray')
-        # Get frameCut with the origin in the bottom left corner
-        frameCut = cv2.flip(frameCut,0)
-        # Plot the frame cut
-        plt.imshow(frameCut,cmap='gray')
-        plt.show()
-
         ## Convert the coordinates from pixels to cm ##
         # self.obstacles = self.convertToCm(self.obstacles)
 
@@ -198,7 +170,7 @@ class Map:
         for key in self.markersRegion.keys():
             if key == 5:
                 # Convert the points to the new reference system
-                regionPoints = self.camera._originToCutFrame(self.markersRegion[key]["points"])
+                regionPoints = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
                 center = np.around(np.mean(regionPoints,axis=0))
                 # Invert the y axis
@@ -207,7 +179,7 @@ class Map:
                 initialPoint = center
             if key == 4:
                 # Convert the points to the new reference system
-                regionPoints = self.camera._originToCutFrame(self.markersRegion[key]["points"])
+                regionPoints = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
                 center = np.around(np.mean(regionPoints,axis=0))
                 # Invert the y axis
@@ -226,22 +198,25 @@ class Map:
         """ 
         marker = Marker()
         # Define the region where the markers are
-        self.markersRegion = marker.detect(self.camera, n_iterations=1)
+        self.markersRegion = marker.detect(self.camera, n_iterations=4)
+        position = np.zeros(2)
+        orientation = 0
         # Iterate through the markers
         for key in self.markersRegion.keys():
             if key == 5:
-                # Convert the points to the new reference system
-                regionPoints = self.camera._originToCutFrame(self.markersRegion[key]["points"])
+                # Estimate position of the robot
+                points = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
-                center = np.around(np.mean(regionPoints,axis=0))
-                # Invert the y axis
-                center[1] = self.h_px - center[1]
+                center = self.camera._invertYaxis([np.around(np.mean(points,axis=0))])[0]
                 # Set the initial point
                 position = center
-                # Compute the orientation
-                orientation = np.array([regionPoints[1][0]-regionPoints[0][0],regionPoints[1][1]-regionPoints[0][1]])
-                # Normalize the orientation
-                orientation = orientation/np.linalg.norm(orientation)
+
+                # Find the median in the segment that goes from the point p[2] to p[3]
+                vector = points[1]-points[0]
+                # Compute the angle of the vector with respect to the x axis
+                orientation = np.arctan2(vector[1],vector[0])
+                orientation = orientation if orientation > 0 else orientation + 2*np.pi
+                
         return position, orientation
         
 
@@ -281,15 +256,3 @@ class Map:
         # Don't add the axis
         plt.axis('off')
         plt.show()
-
-if __name__ == "__main__":
-    camera = Camera()
-    map = Map(camera)
-    initialPoint, finalPoint = map.getInitialFinalPoints()
-    camera.obstacles = map.obstacles
-    camera.goalPosition = finalPoint
-    camera.startPosition = initialPoint
-    while True:
-        camera.robotEstimatedPosition, camera.robotEstimatedOrientation = map.cameraRobotSensing()
-        if(camera.display()):
-            break
