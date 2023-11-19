@@ -194,7 +194,7 @@ class Map:
 
         Returns:
             np.array([x,y]): Position of the robot [cm]
-            np.array([x,y]): Orientation of the robot (unit vector)
+            int: Orientation of the robot (in radians)
         """ 
         marker = Marker()
         # Define the region where the markers are
