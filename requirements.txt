@@ -2,3 +2,5 @@ numpy
 ipykernel
 tdmclient
 opencv-python
+shapely
+matplotlib

@@ -156,3 +156,7 @@ class Marker:
             avg_corners[id]["points"] //= avg_corners[id]["num_samples"]
         
         return avg_corners
+    
+if __name__ == "__main__":
+    marker = Marker()
+    marker.generate()
