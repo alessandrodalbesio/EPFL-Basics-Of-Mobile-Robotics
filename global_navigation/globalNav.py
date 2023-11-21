@@ -10,7 +10,6 @@ class Global:
         self.initialPoint = None
         self.finalPoint = None
         self.obstacles = obstacles
-        print(type(self.obstacles))
 
     ## 1) Build visibility graph
 

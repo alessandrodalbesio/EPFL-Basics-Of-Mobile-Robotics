@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import generic modules
 import numpy as np
-from utils.settings import h_px, w_px,IDS_CORNER_MARKERS
+from utils.settings import h_px, w_px,IDS_CORNER_MARKERS, CAMERA_ID, ITERATIONS_MAP_CREATION
 from utils.exceptions import NotEnoughMarkers, DoNotAccessError
 
 # Import camera modules
@@ -33,7 +33,7 @@ class Camera:
         self.camera = None
         self.camera_frame = None
         if frame_path == None:
-            self.camera = cv2.VideoCapture(0)
+            self.camera = cv2.VideoCapture(CAMERA_ID)
         else:
             self.camera_frame = cv2.imread(frame_path)
 
@@ -43,7 +43,6 @@ class Camera:
 
         # Estimate the region of interest
         self.fieldArea = None
-        self.detectedMarkers = None
         self.fieldAreaEstimation()
 
         # Define some parameters for real time display
@@ -62,7 +61,7 @@ class Camera:
         ## Markers detection ##
         # Define the region where the markers are
         if self.camera is not None:
-            self.markersRegion = marker.detect(cam=self,n_iterations=100)
+            self.markersRegion = marker.detect(cam=self,n_iterations=ITERATIONS_MAP_CREATION)
         else: 
             self.markersRegion = marker.detect(cam=self,n_iterations=1)
         # Remove the markers that are not used for corner detection

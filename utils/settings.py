@@ -6,6 +6,11 @@ IDS_CORNER_MARKERS = [0,1,2,3]
 ID_GOAL_MARKER = 4
 ID_ROBOT_MARKER = 5
 
+# Camera settings
+CAMERA_ID = 0
+ITERATIONS_MAP_CREATION = 50
+ITERATIONS_REAL_TIME_DETECTION = 4
+
 # Environment settings
 w_cm = 63
 h_cm = 59.5

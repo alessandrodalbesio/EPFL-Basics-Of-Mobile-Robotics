@@ -1,18 +1,15 @@
 # Append the path
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from vision.marker import Marker
 
 # Import generic modules
 import numpy as np
 import matplotlib.pyplot as plt
-import utils.logger as logger
-from utils.settings import w_px, h_px, w_cm, h_cm
+from utils.settings import w_px, h_px, w_cm, h_cm,ITERATIONS_MAP_CREATION,ITERATIONS_REAL_TIME_DETECTION,ID_ROBOT_MARKER
 
 # Import camera modules
 import cv2
-from vision.camera import Camera
 
 # Import geometry modules
 from shapely import Polygon, BufferCapStyle, BufferJoinStyle
@@ -164,7 +161,7 @@ class Map:
         """
         marker = Marker()
         # Define the region where the markers are
-        self.markersRegion = marker.detect(self.camera, n_iterations=20)
+        self.markersRegion = marker.detect(self.camera, n_iterations=ITERATIONS_MAP_CREATION)
         # Finf the marker with ID 4
         for key in self.markersRegion.keys():
             if key == 5:
@@ -186,7 +183,7 @@ class Map:
                 # Set the final point
                 finalPoint = center
 
-        return initialPoint, finalPoint
+        return self.convertToCm(initialPoint), finalPoint
 
     def cameraRobotSensing(self):
         """ Get the position and the otientation of the robot. The position and orientation is refreshed at a rate of 30Hz
@@ -197,12 +194,12 @@ class Map:
         """ 
         marker = Marker()
         # Define the region where the markers are
-        self.markersRegion = marker.detect(self.camera, n_iterations=4)
-        position = np.zeros(2)
-        orientation = 0
+        self.markersRegion = marker.detect(self.camera, n_iterations=ITERATIONS_REAL_TIME_DETECTION)
+        position = None
+        orientation = None
         # Iterate through the markers
         for key in self.markersRegion.keys():
-            if key == 5:
+            if key == ID_ROBOT_MARKER:
                 # Estimate position of the robot
                 points = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
@@ -219,7 +216,7 @@ class Map:
         return position, orientation
         
 
-    def plot(self, initialPoint=None, finalPoint=None, path=None):
+    def plot(self, initialPoint=None, finalPoint=None, path=None, fps=None):
         """Plot the map and the obstacles"""
         
         # Create a figure with the same size as the map
@@ -249,6 +246,10 @@ class Map:
         if initialPoint is not None and finalPoint is not None:
             plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10)
             plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20)
+
+        # Plot the number of frames per second if it is given
+        if fps is not None:
+            plt.text(0,0,"FPS: {}".format(fps),color='white')
 
         # Set the limits of the plot
         plt.axis('equal')
