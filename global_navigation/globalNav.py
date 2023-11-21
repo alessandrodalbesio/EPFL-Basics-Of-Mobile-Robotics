@@ -5,11 +5,12 @@ from dijkstra import DijkstraSPF, Graph
 
 class Global:
     
-    def __init__(self, initialPoint, finalPoint, obstacles):
+    def __init__(self, obstacles):
         # all attribute of class
-        self.initialPoint = initialPoint
-        self.finalPoint = finalPoint
+        self.initialPoint = None
+        self.finalPoint = None
         self.obstacles = obstacles
+        print(type(self.obstacles))
 
     ## 1) Build visibility graph
 
@@ -102,7 +103,9 @@ class Global:
         return nb_pts, all_points, weight_matrix
 
 
-    def find_optimal_path(self):
+    def find_optimal_path(self, initialPoint, finalPoint):
+        self.initialPoint = initialPoint
+        self.finalPoint = finalPoint
 
         nb_pts, all_points, weight_matrix = self.create_weight_matrix()
 

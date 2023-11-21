@@ -4,3 +4,4 @@ tdmclient
 opencv-python
 shapely
 matplotlib
+dijkstra
