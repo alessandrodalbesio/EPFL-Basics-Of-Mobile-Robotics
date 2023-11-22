@@ -12,13 +12,13 @@ class Global:
         self.initialPoint = None
         self.finalPoint = None
         self.obstacles = obstacles
-
         self.nb_pts = None
         self.all_points = None
 
         self.lines = None
 
         self.optimal_path = None
+        self.goal_pt = None
 
     ## 1) Build visibility graph
 
@@ -149,7 +149,7 @@ class Global:
     
     ## 3) Global navigation controller 
 
-    def compute_angle_traj(self, goal_pt,estimated_pt):
+    def compute_angle_traj(self, estimated_pt):
         """Computes the angle of the vector formed by 2 points.
         
         Args:
@@ -160,15 +160,15 @@ class Global:
             float: angle of the vector, in range [0,2pi]
         """
     
-        deltaX = goal_pt[0] - estimated_pt[0]
-        deltaY = goal_pt[1] - estimated_pt[1]
+        deltaX = self.goal_pt[0] - estimated_pt[0]
+        deltaY = self.goal_pt[1] - estimated_pt[1]
         
         # All the angles are expressed in the range (O,2pi) for consistency
-        traj_angle = np.atan2(deltaY, deltaX) + 2 * np.pi 
+        traj_angle = (np.arctan2(deltaY, deltaX) + 2 * np.pi ) % (2 * np.pi)
         
         return traj_angle
     
-    def global_controller(self, estimated_pt,estimated_angle, goal_pt,idx_goal_pt):
+    def global_controller(self, estimated_pt,estimated_angle):
         """Controller which makes the robot follow the optimal global path.
         
         Args:
@@ -182,6 +182,7 @@ class Global:
             int: Right motor speed
         """
 
+
         # Defining thresholds, scaling coefficients, and nominal speed
         dist_from_goal_thresh = 1 # TO BE CHANGED
         angle_thresh = 1 # in rad, TO BE CHANGED
@@ -189,13 +190,25 @@ class Global:
         k_angle = 1 # TO BE CHANGED
         k_traj = 1 # TO BE CHANGED
 
+        # Initial step
+        if self.goal_pt == None :
+            self.goal_pt = self.optimal_path[1]
+            idx_goal_pt = 1
+
         # Change intermediate goal point 
-        if np.dist(estimated_pt ,goal_pt)< dist_from_goal_thresh:
+        if np.linalg.norm(estimated_pt - self.goal_pt)< dist_from_goal_thresh:
+
+            # Final step: put motor speed to 0 if the final goal is reached
+            if (self.goal_pt == self.optimal_path[-1]):
+                motorLeft = 0
+                motorRight = 0
+                return motorLeft,motorRight
+            
             idx_goal_pt = idx_goal_pt + 1
-            goal_pt = self.optimal_path[idx_goal_pt]
+            self.goal_pt = self.optimal_path[idx_goal_pt]
 
         # Compute the difference between the trajectory angle and the estimated angle
-        traj_angle = self.compute_angle_traj(goal_pt,estimated_pt) 
+        traj_angle = self.compute_angle_traj(estimated_pt) 
         angle_diff = (traj_angle - estimated_angle)
 
         # Update direction of robot
