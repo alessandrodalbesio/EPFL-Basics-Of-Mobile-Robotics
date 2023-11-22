@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from shapely.geometry import Point, LineString, Polygon
 from dijkstra import DijkstraSPF, Graph
+from utils.settings import w_px, h_px
+import cv2
 
 class Global:
     
@@ -121,3 +123,4 @@ class Global:
         optimal_path = [ all_points[node] for node in optimal_nodes]
 
         return optimal_path
+    
