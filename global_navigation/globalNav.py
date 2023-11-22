@@ -16,15 +16,15 @@ class Global:
         self.nb_pts = None
         self.all_points = None
 
+        self.lines = None
+
         self.optimal_path = None
 
     ## 1) Build visibility graph
 
     def find_visible_lines(self):
         """Connect each node together, and remove lines which cross obstacles.
-        
-        Returns:
-            np.array((n, LineString)): filtered lines, all lines which don't cross obstacles
+
         """
 
         # Create Shapely polygons
@@ -58,23 +58,22 @@ class Global:
                     all_lines.extend([segment])
 
         # Filter to remove lines which intersect the polygons
-        filtered_lines = [line for line in all_lines if not any(line.crosses(polygon) or (line.within(polygon)) for polygon in polygons )]
+        self.lines = [line for line in all_lines if not any(line.crosses(polygon) or (line.within(polygon)) for polygon in polygons )]
 
-        return filtered_lines
 
-    def plot_visibility(self, lines):
+    def plot_visibility(self):
         """Plots the map with obstacles, initial and final points, and all visible lines.
-        
-        Args:
-            lines: all lines which don't cross any obstacles
         """
+
+        # Call 'find_visible_lines' to compute all lines which don't cross any obstacle
+        self.find_visible_lines()
 
         # Create Shapely polygons
         polygons = [ Polygon(obstacle) for obstacle in self.obstacles]
 
         # Extract x and y coordinates from LineString objects
-        x_coords_lines = [list(line.xy[0]) for line in lines]
-        y_coords_lines = [list(line.xy[1]) for line in lines]
+        x_coords_lines = [list(line.xy[0]) for line in self.lines]
+        y_coords_lines = [list(line.xy[1]) for line in self.lines]
 
         # Extract x and y coordinates from Polygon objects
         x_coords_polygons = [list(polygon.exterior.xy[0]) + [polygon.exterior.xy[0][0]] for polygon in polygons]
@@ -102,17 +101,15 @@ class Global:
             np.array((n, n)): weight matrix
         """
 
-        lines = self.find_visible_lines()
-
         # Create an empty numpy array of size len(all_points)
         self.nb_pts = len(self.all_points)
         weight_matrix = np.zeros((self.nb_pts,self.nb_pts))
 
-        for i in range (len(lines)):
+        for i in range (len(self.lines)):
 
-            line_dist = lines[i].length
+            line_dist = self.lines[i].length
 
-            line_coord = np.array(lines[i].coords)
+            line_coord = np.array(self.lines[i].coords)
 
             x_index = ((line_coord[0,0] == self.all_points[:,0]) & (line_coord[0,1] == self.all_points[:,1]))
             y_index = ((line_coord[1,0] == self.all_points[:,0]) & (line_coord[1,1] == self.all_points[:,1]))
