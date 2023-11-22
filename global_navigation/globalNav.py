@@ -72,10 +72,8 @@ class Global:
             plt.fill(x, y, alpha=0.3, color='green')
 
         # Plot initial an final points
-        plt.plot(self.initialPoint[0],self.initialPoint[1], marker='X',ms=10,color = 'red')
-        plt.plot(self.finalPoint[0],self.finalPoint[1], marker='X',ms=10,color = 'red')
-
-        plt.grid(True)
+        plt.plot(self.initialPoint[0],self.initialPoint[1],marker='8',color='green', markersize=10)
+        plt.plot(self.finalPoint[0],self.finalPoint[1],marker='X',color='red', markersize=20)
         plt.show()
 
     ## 2) Find optimal path
