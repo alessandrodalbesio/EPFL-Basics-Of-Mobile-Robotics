@@ -183,7 +183,7 @@ class Map:
                 # Set the final point
                 finalPoint = center
 
-        return self.convertToCm(initialPoint), finalPoint
+        return initialPoint, finalPoint
 
     def cameraRobotSensing(self):
         """ Get the position and the otientation of the robot. The position and orientation is refreshed at a rate of 30Hz
