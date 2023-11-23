@@ -185,7 +185,7 @@ class Map:
 
         return initialPoint, finalPoint
 
-    def cameraRobotSensing(self):
+    def cameraRobotSensing(self, isInCm=False):
         """ Get the position and the otientation of the robot. The position and orientation is refreshed at a rate of 30Hz
 
         Returns:
@@ -220,7 +220,10 @@ class Map:
                 # Compute the angle of the vector with respect to the x axis
                 # orientation = np.arctan2(vector[1],vector[0])
                 # orientation = orientation if orientation > 0 else orientation + 2*np.pi
-                
+        
+        if isInCm:
+            position = self.convertToCm([position])[0]
+
         return position, orientation
         
 
