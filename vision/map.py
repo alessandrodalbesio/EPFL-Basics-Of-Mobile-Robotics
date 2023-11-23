@@ -207,11 +207,19 @@ class Map:
                 # Set the initial point
                 position = center
 
+
+                # Orientation new method
+                orientation = 0
+                for i in range(0,len(points)-1):
+                    vector = points[i+1]-points[i]
+                    orientation += (np.arctan2(vector[1],vector[0]) + 2*np.pi - 0.5*np.pi * i + 2*np.pi)%(2*np.pi)
+                orientation /= len(points)-1
+
                 # Find the median in the segment that goes from the point p[2] to p[3]
-                vector = points[1]-points[0]
+                # vector = points[1]-points[0]
                 # Compute the angle of the vector with respect to the x axis
-                orientation = np.arctan2(vector[1],vector[0])
-                orientation = orientation if orientation > 0 else orientation + 2*np.pi
+                # orientation = np.arctan2(vector[1],vector[0])
+                # orientation = orientation if orientation > 0 else orientation + 2*np.pi
                 
         return position, orientation
         
