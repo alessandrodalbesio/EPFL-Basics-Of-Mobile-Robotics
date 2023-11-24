@@ -12,7 +12,7 @@ ITERATIONS_MAP_CREATION = 50
 ITERATIONS_REAL_TIME_DETECTION = 4
 
 # Environment settings
-w_cm = 63
-h_cm = 59.5
+w_cm = 21*3
+h_cm = 29.7*3
 w_px = 640
 h_px = round(w_px * h_cm / w_cm)

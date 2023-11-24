@@ -39,7 +39,7 @@ class Map:
     w_px = w_px # Width of the environment [px]
     camera = None
 
-    def __init__(self, camera, numberOfObstacles=2, robotSize=25):
+    def __init__(self, camera, numberOfObstacles=2, robotSize=80):
         """ Constructor of the Map class
 
         Args:
@@ -215,9 +215,17 @@ class Map:
                 orientation = 0
                 for i in range(len(points)):
                     vector = points[(i+1)%len(points)]-points[i]
-                    orientation += np.arctan2(vector[1],vector[0]) + i*np.pi/2
+                    theta = np.arctan2(vector[1],vector[0])
+                    theta = (theta + 2*np.pi + i*np.pi/2)%(2*np.pi)
+                    orientation += theta
                 orientation /= len(points)
-                orientation = (orientation + 2*np.pi)%(2*np.pi)
+
+                #orientation = 0
+                #for i in range(len(points)):
+                    #vector = points[(i+1)%len(points)]-points[i]
+                    #orientation += np.arctan2(vector[1],vector[0]) + i*np.pi/2
+                #orientation /= len(points)
+                #orientation = (orientation + 2*np.pi)%(2*np.pi)
                 
                 # Find the median in the segment that goes from the point p[2] to p[3]
                 # vector = points[1]-points[0]

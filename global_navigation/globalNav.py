@@ -19,6 +19,7 @@ class Global:
         self.lines = None
 
         self.optimal_path = None
+        self.idx_goal_pt = 1
         self.goal_pt = None
 
     ## 1) Build visibility graph
@@ -182,54 +183,55 @@ class Global:
             int: Left motor speed
             int: Right motor speed
         """
-        print("ENTER LOOP")
+        #print("ENTER LOOP")
         goal_achieved = False
 
         # Defining thresholds, scaling coefficients, and nominal speed
-        dist_from_goal_thresh = 80 # TO BE CHANGED
+        dist_from_goal_thresh = 50 # TO BE CHANGED
         angle_thresh = 0.2 # in rad, TO BE CHANGED
         nominal_speed = 100 # TO BE CHANGED
-        k_angle = 200 # TO BE CHANGED
-        k_traj = 500 # TO BE CHANGED
+        k_angle = 100 # TO BE CHANGED
+        k_traj = 300 # TO BE CHANGED
 
         # Initial step
         if self.goal_pt is None :
+            #print('INI')
             self.goal_pt = self.optimal_path[1]
-            idx_goal_pt = 1
+            #idx_goal_pt = 1
 
         # Change intermediate goal point 
         if np.linalg.norm(estimated_pt - self.goal_pt)< dist_from_goal_thresh:
-            print(np.linalg.norm(estimated_pt - self.goal_pt))
+            #print(np.linalg.norm(estimated_pt - self.goal_pt))
             # Final step: put motor speed to 0 if the final goal is reached
-            print(self.goal_pt,self.optimal_path[-1])
+            #print(self.goal_pt,self.optimal_path[-1])
             if ((self.goal_pt == self.optimal_path[-1]).all()):
-                print('arrived to goal')
+                #print('arrived to goal')
                 motorLeft = 0
                 motorRight = 0
                 goal_achieved = True
                 return motorLeft,motorRight, goal_achieved
-            
-            idx_goal_pt = idx_goal_pt + 1
-            self.goal_pt = self.optimal_path[idx_goal_pt]
+            #print('idx goal:',self.idx_goal_pt)
+            self.idx_goal_pt = self.idx_goal_pt + 1
+            self.goal_pt = self.optimal_path[self.idx_goal_pt]
 
         # Compute the difference between the trajectory angle and the estimated angle
         traj_angle = self.compute_angle_traj(estimated_pt) 
         angle_diff = (traj_angle - estimated_angle)
-        print('traj_angle:',traj_angle/math.pi,'pi')
-        print('estimated angle:',estimated_angle/math.pi,'pi')
-        print('angle diff:',angle_diff/math.pi,'pi')
+        #print('traj_angle:',traj_angle/math.pi,'pi')
+        #print('estimated angle:',estimated_angle/math.pi,'pi')
+        #print('angle diff:',angle_diff/math.pi,'pi')
 
 
         # Update direction of robot
         if (abs(angle_diff)> angle_thresh):  
-            print("ANGLE")
+            #print("ANGLE")
             # Hypothesis: when angle_diff < 0: right motor < 0 and left motor > 0 NOT SURE, TO BE CHANGED
             motorLeft = - k_angle * angle_diff
             motorRight = + k_angle * angle_diff
 
         # Update trajectory of robot
         else:
-            print("TRAJ")
+            #print("TRAJ")
             motorLeft = nominal_speed - k_traj * angle_diff
             motorRight = nominal_speed + k_traj * angle_diff
 
