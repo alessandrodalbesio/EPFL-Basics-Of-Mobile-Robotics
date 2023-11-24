@@ -224,7 +224,7 @@ class Camera:
 
             # Display the orientation
             o = self._robotEstimatedOrientation
-            o = tuple(np.array([p[0] + 50*np.cos(o), p[1] + 50*np.sin(o)]).astype(int))
+            o = tuple(np.array([p[0] + 50*np.cos(o), p[1] - 50*np.sin(o)]).astype(int))
             cv2.arrowedLine(frameCut,p,o,(255,0,0),2)
 
 

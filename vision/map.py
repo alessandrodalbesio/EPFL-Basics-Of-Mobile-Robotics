@@ -209,12 +209,16 @@ class Map:
 
 
                 # Orientation new method
-                orientation = 0
-                for i in range(0,len(points)-1):
-                    vector = points[i+1]-points[i]
-                    orientation += (np.arctan2(vector[1],vector[0]) + 2*np.pi - 0.5*np.pi * i + 2*np.pi)%(2*np.pi)
-                orientation /= len(points)-1
+                points = self.camera._invertYaxis(points)
 
+                # Compute the angle of the vector with respect to the x axis
+                orientation = 0
+                for i in range(len(points)):
+                    vector = points[(i+1)%len(points)]-points[i]
+                    orientation += np.arctan2(vector[1],vector[0]) + i*np.pi/2
+                orientation /= len(points)
+                orientation = (orientation + 2*np.pi)%(2*np.pi)
+                
                 # Find the median in the segment that goes from the point p[2] to p[3]
                 # vector = points[1]-points[0]
                 # Compute the angle of the vector with respect to the x axis
