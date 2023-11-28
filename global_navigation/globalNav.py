@@ -183,57 +183,69 @@ class Global:
             int: Left motor speed
             int: Right motor speed
         """
-        #print("ENTER LOOP")
         goal_achieved = False
 
         # Defining thresholds, scaling coefficients, and nominal speed
         dist_from_goal_thresh = 50 # TO BE CHANGED
         angle_thresh = 0.2 # in rad, TO BE CHANGED
-        nominal_speed = 100 # TO BE CHANGED
-        k_angle = 100 # TO BE CHANGED
+        nominal_speed = 75 # TO BE CHANGED
+        k_angle = 50 # TO BE CHANGED
         k_traj = 300 # TO BE CHANGED
 
         # Initial step
         if self.goal_pt is None :
-            #print('INI')
             self.goal_pt = self.optimal_path[1]
-            #idx_goal_pt = 1
 
         # Change intermediate goal point 
-        if np.linalg.norm(estimated_pt - self.goal_pt)< dist_from_goal_thresh:
-            #print(np.linalg.norm(estimated_pt - self.goal_pt))
-            # Final step: put motor speed to 0 if the final goal is reached
-            #print(self.goal_pt,self.optimal_path[-1])
+        if np.linalg.norm(estimated_pt - self.goal_pt) < dist_from_goal_thresh:
+            # Arrived to goal point
             if ((self.goal_pt == self.optimal_path[-1]).all()):
-                #print('arrived to goal')
                 motorLeft = 0
                 motorRight = 0
                 goal_achieved = True
                 return motorLeft,motorRight, goal_achieved
-            #print('idx goal:',self.idx_goal_pt)
+            
+            # Update goal point
             self.idx_goal_pt = self.idx_goal_pt + 1
             self.goal_pt = self.optimal_path[self.idx_goal_pt]
-
-        # Compute the difference between the trajectory angle and the estimated angle
+        
+        
+        # Compute the trajectory angle
         traj_angle = self.compute_angle_traj(estimated_pt) 
-        angle_diff = (traj_angle - estimated_angle)
-        #print('traj_angle:',traj_angle/math.pi,'pi')
-        #print('estimated angle:',estimated_angle/math.pi,'pi')
-        #print('angle diff:',angle_diff/math.pi,'pi')
 
+        # Compute the angle difference between the trajectory angle and the estimated angle
+        if 0 < traj_angle <= np.pi:
+            if traj_angle <= estimated_angle <= traj_angle + np.pi:
+                angle_diff = estimated_angle - traj_angle
+            else:
+                if traj_angle + np.pi <= estimated_angle <= 2 * np.pi:
+                    angle_diff = estimated_angle - traj_angle - 2 * np.pi
+                else:
+                    angle_diff = estimated_angle - traj_angle
+        else:
+            if traj_angle - np.pi <= estimated_angle <= traj_angle:
+                angle_diff = estimated_angle - traj_angle
+            else:
+                if 0 <= estimated_angle <= traj_angle- np.pi:
+                    angle_diff = estimated_angle - traj_angle + 2 * np.pi
+                else:
+                    angle_diff = estimated_angle - traj_angle
 
         # Update direction of robot
-        if (abs(angle_diff)> angle_thresh):  
-            #print("ANGLE")
-            # Hypothesis: when angle_diff < 0: right motor < 0 and left motor > 0 NOT SURE, TO BE CHANGED
-            motorLeft = - k_angle * angle_diff
-            motorRight = + k_angle * angle_diff
-
-        # Update trajectory of robot
+        if (abs(angle_diff) > angle_thresh):
+            if angle_diff < 0:
+                motorLeft = - k_angle * abs(angle_diff)
+                motorRight = k_angle * abs(angle_diff)
+            else:
+                motorLeft = k_angle * abs(angle_diff)
+                motorRight = - k_angle * abs(angle_diff)
         else:
-            #print("TRAJ")
-            motorLeft = nominal_speed - k_traj * angle_diff
-            motorRight = nominal_speed + k_traj * angle_diff
+            if angle_diff > 0:
+                motorLeft = nominal_speed + k_traj * abs(angle_diff)
+                motorRight = nominal_speed
+            else:
+                motorLeft = nominal_speed
+                motorRight = nominal_speed + k_traj * abs(angle_diff)
 
-
+        # Return motor speeds
         return motorLeft,motorRight, goal_achieved

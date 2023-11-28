@@ -148,6 +148,16 @@ class Map:
             points[:,1] = self.h_px - points[:,1]
             # Add the vertices to the list of obstacles
             self.obstacles.append(points)
+        
+        # Iterate through the obstacles and remove the points that are outside the image
+        for i in range(len(self.obstacles)):
+            # Get the vertices of the obstacle
+            points = self.obstacles[i]
+            # Get the points that are outside the image
+            points = points[np.logical_and(points[:,0]>=0,points[:,0]<=self.w_px)]
+            points = points[np.logical_and(points[:,1]>=0,points[:,1]<=self.h_px)]
+            # Update the obstacle
+            self.obstacles[i] = points
 
         ## Convert the coordinates from pixels to cm ##
         # self.obstacles = self.convertToCm(self.obstacles)
@@ -212,14 +222,19 @@ class Map:
                 points = self.camera._invertYaxis(points)
 
                 # Compute the angle of the vector with respect to the x axis
-                orientation = 0
-                for i in range(len(points)):
-                    vector = points[(i+1)%len(points)]-points[i]
-                    theta = np.arctan2(vector[1],vector[0])
-                    theta = (theta + 2*np.pi + i*np.pi/2)%(2*np.pi)
-                    orientation += theta
-                orientation /= len(points)
-
+                #orientation = 0
+                #for i in [0]:
+                #    vector = points[(i+1)%len(points)]-points[i]
+                #    theta = np.arctan2(vector[1],vector[0])
+                #    #theta = (theta + 2*np.pi + i*np.pi/2)%(2*np.pi)
+                #    orientation += theta
+                #orientation /= len(points)
+                #if orientation < 0:
+                #    orientation += 2*np.pi
+                vector = points[1]-points[0]
+                orientation = np.arctan2(vector[1],vector[0])
+                orientation = (orientation + 2*np.pi)%(2*np.pi)
+                
                 #orientation = 0
                 #for i in range(len(points)):
                     #vector = points[(i+1)%len(points)]-points[i]
