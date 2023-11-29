@@ -16,3 +16,15 @@ w_cm = 29.7*4
 h_cm = 21*3
 w_px = 640
 h_px = round(w_px * h_cm / w_cm)
+NUMBER_OF_OBSTACLES = 2
+ROBOT_SIZE = 50
+
+# Global navigation settings
+DIST_FROM_GOAL_THRESH = 50
+ANGLE_THRESH = 0.2
+NOMINAL_SPEED = 75
+K_ANGLE = 50
+K_TRAJ = 300
+
+# Kidnapping settings
+KIDNAPPING_CONV_THRESH = 4

@@ -6,7 +6,7 @@ from vision.marker import Marker
 # Import generic modules
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.settings import w_px, h_px, w_cm, h_cm,ITERATIONS_MAP_CREATION,ITERATIONS_REAL_TIME_DETECTION,ID_ROBOT_MARKER
+from utils.settings import *
 
 # Import camera modules
 import cv2
@@ -28,18 +28,7 @@ class Map:
         w_px (int): Width of the environment [px]
         camera (Camera): Camera object
     """
-    # Public attributes
-    h = h_cm # Height of the environment [cm]
-    w = w_cm # Width of the environment [cm]
-    obstacles = [] # List of obstacles
-    obstacles_original = [] # List of obstacles
-
-    # Internal attributes
-    h_px = h_px # Height of the environment [px]
-    w_px = w_px # Width of the environment [px]
-    camera = None
-
-    def __init__(self, camera, numberOfObstacles=2, robotSize=80):
+    def __init__(self, camera, h_px = h_px, h_cm = h_cm, w_px = w_px, w_cm = w_cm, number_of_obstacles = NUMBER_OF_OBSTACLES, robot_size = ROBOT_SIZE):
         """ Constructor of the Map class
 
         Args:
@@ -47,10 +36,19 @@ class Map:
             numberOfObstacles (int, optional): Number of obstacles in the environment (need to be tuned based on the environment). Defaults to 2.
             robotSize (int, optional): Robot size (need to be tuned based on the robot). Defaults to 75.
         """
-        # Set
+        # Define some attributes
         self.camera = camera
-        self.nObstacles = numberOfObstacles
-        self.robotSize = robotSize
+        self.obstacles = []
+        self.obstacles_original = []
+
+        # Define the size of the environment
+        self.number_obstacles = number_of_obstacles
+        self.robotSize = robot_size
+        self.h_px = h_px
+        self.w_px = w_px
+        self.h = h_cm
+        self.w = w_cm
+
 
     def convertToPx(self, points):
         """ Convert the coordinates from cm to pixels
@@ -80,8 +78,13 @@ class Map:
             cmPoints.append([p[0]*self.w/self.w_px,p[1]*self.h/self.h_px])
         return np.array(cmPoints)
 
-    def findObstacles(self):
+    def findObstacles(self, number_of_obstacles=None, robot_size=None):
         """ Find the obstacles in the environment. They can be accessed through the obstacles attribute. The obstacles are already enlarged by the radius of the robot. All the vertices are expressed in cm. """
+        
+        if number_of_obstacles is None:
+            number_of_obstacles = self.number_obstacles
+        if robot_size is None:
+            robot_size = self.robotSize
 
         ## Find the obstacles in the image ##
         # Get a binary frame from the camera
@@ -89,7 +92,7 @@ class Map:
         # Convert the image to grayscale
         gray = cv2.cvtColor(frameCut, cv2.COLOR_BGR2GRAY)
         # Apply a threshold to the image
-        _, mask = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY) # [TODO] Value still to be tuned
+        _, mask = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
         # Invert the mask
         mask = cv2.bitwise_not(mask)
         # Create a temporary binary image
@@ -99,7 +102,7 @@ class Map:
         # Order the contours by area
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
         # Get the first N_obstacles contours
-        contours = contours[:self.nObstacles]
+        contours = contours[:number_of_obstacles]
         # Plot the contours on the binary image
         cv2.drawContours(temp,contours,-1,(255,255,255),-1)
 
@@ -124,7 +127,7 @@ class Map:
             # Add the vertices to the list of obstacles
             self.obstacles_original.append(points)
             # Enlarge the polygon
-            pol = pol.buffer(self.robotSize, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre)
+            pol = pol.buffer(robot_size, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre)
             # Add the vertices of the polygon to the list
             pols.append(pol)
 
@@ -159,15 +162,12 @@ class Map:
             # Update the obstacle
             self.obstacles[i] = points
 
-        ## Convert the coordinates from pixels to cm ##
-        # self.obstacles = self.convertToCm(self.obstacles)
-
     def getInitialFinalPoints(self):
         """ Get the initial and final points of the environment
 
         Returns:
-            np.array([x,y]): Initial point [cm]
-            np.array([x,y]): Final point [cm]
+            np.array([x,y]): Initial point [px]
+            np.array([x,y]): Final point [px]
         """
         marker = Marker()
         # Define the region where the markers are
@@ -217,7 +217,6 @@ class Map:
                 # Set the initial point
                 position = center
 
-
                 # Orientation new method
                 points = self.camera._invertYaxis(points)
 
@@ -254,11 +253,11 @@ class Map:
         return position, orientation
         
 
-    def plot(self, initialPoint=None, finalPoint=None, path=None, fps=None):
+    def plot(self, initialPoint=None, finalPoint=None):
         """Plot the map and the obstacles"""
         
         # Create a figure with the same size as the map
-        fig = plt.figure()
+        plt.figure()
 
         # Plot a geometric shape with the coordinates of the obstacles
         for obstacle in self.obstacles:
@@ -275,19 +274,10 @@ class Map:
             # Plot the shape
             plt.plot(plot_points[:,0],plot_points[:,1],color='red')
 
-        # Plot the path
-        if path is not None:
-            path = np.array(path)
-            plt.plot(path[:,0],path[:,1],marker='o',color='blue')
-
         # Plot the initial and final points if they are given
         if initialPoint is not None and finalPoint is not None:
             plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10)
             plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20)
-
-        # Plot the number of frames per second if it is given
-        if fps is not None:
-            plt.text(0,0,"FPS: {}".format(fps),color='white')
 
         # Set the limits of the plot
         plt.axis('equal')

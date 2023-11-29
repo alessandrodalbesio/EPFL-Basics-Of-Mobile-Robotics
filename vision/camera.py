@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import generic modules
 import numpy as np
-from utils.settings import h_px, w_px,IDS_CORNER_MARKERS, CAMERA_ID, ITERATIONS_MAP_CREATION
+from utils.settings import *
 from utils.exceptions import NotEnoughMarkers, DoNotAccessError
 
 # Import camera modules
@@ -28,7 +28,7 @@ class Camera:
     """
 
     ## Management methods ##
-    def __init__(self,frame_path=None):
+    def __init__(self,frame_path=None,h_cm=h_cm,w_cm=w_cm,h_px=h_px,w_px=w_px):
         # Get the camera
         self.camera = None
         self.camera_frame = None
@@ -36,10 +36,6 @@ class Camera:
             self.camera = cv2.VideoCapture(CAMERA_ID)
         else:
             self.camera_frame = cv2.imread(frame_path)
-
-        # Define h of the frame
-        self.h_px = h_px
-        self.w_px = w_px
 
         # Estimate the region of interest
         self.fieldArea = None
@@ -52,6 +48,11 @@ class Camera:
         self._robotEstimatedPosition = None
         self._robotEstimatedOrientation = None
 
+        # Define the sizes
+        self.h_cm = h_cm
+        self.w_cm = w_cm
+        self.h_px = h_px
+        self.w_px = w_px
 
     def fieldAreaEstimation(self):
         """ Method that estimate based on the corner markers the region of the fieldArea """
@@ -85,14 +86,6 @@ class Camera:
         ## Release the camera ##
         self.camera.release()
         cv2.destroyAllWindows()
-
-    def calibration(self):
-        """ Method to calibrate the camera
-
-        Raises:
-            NotImplementedError: This method is not implemented yet [TODO]
-        """
-        raise NotImplementedError
 
     ## Methods for real time display ##
     # Obstacles
@@ -151,6 +144,39 @@ class Camera:
         # Set the goal position
         self._goalPosition = value
     
+    # Measured position
+    @property
+    def robotMeasuredPosition(self):
+        raise DoNotAccessError
+    
+    @robotMeasuredPosition.setter
+    def robotMeasuredPosition(self,value):
+        """ Set the measured position
+
+        Args:
+            value (np.array((2,))): Measured position
+        """
+        # Invert y axis to make it compatible with opencv
+        value = self._invertYaxis([value])[0]
+
+        # Set the measured position
+        self._robotMeasuredPosition = value
+
+    # Measured orientation
+    @property
+    def robotMeasuredOrientation(self):
+        raise DoNotAccessError
+    
+    @robotMeasuredOrientation.setter
+    def robotMeasuredOrientation(self,value):
+        """ Set the measured Orientation
+
+        Args:
+            value (float): Measured orientation
+        """
+        # Set the measured Orientation
+        self._robotMeasuredOrientation = value
+
     # Estimated position
     @property
     def robotEstimatedPosition(self):
@@ -163,7 +189,11 @@ class Camera:
         Args:
             value (np.array((2,))): Estimated position
         """
-        # Invert y axis to make it compatible with opencv
+        # Convert from cm to px
+        value[0] = value[0] * self.w_px / self.w_cm
+        value[1] = value[1] * self.h_px / self.h_cm
+
+        # Make it compatible with opencv
         value = self._invertYaxis([value])[0]
 
         # Set the estimated position
@@ -179,11 +209,8 @@ class Camera:
         """ Set the estimated Orientation
 
         Args:
-            value (np.array((2,))): Estimated Orientation
+            value (float): Estimated orientation
         """
-        # Invert the y sign (because the y axis is inverted)
-        # value[1] = -value[1]
-
         # Set the estimated Orientation
         self._robotEstimatedOrientation = value
 
@@ -202,7 +229,7 @@ class Camera:
             for obstacle in self._obstacles:
                 for p in obstacle:
                     p = tuple(p.astype(int))
-                    cv2.circle(frameCut,p,5,(0,0,255),-1)
+                    cv2.circle(frameCut,p,5,(0,0,0),-1)
 
         # Display the start position
         if self._startPosition is not None:
@@ -226,6 +253,17 @@ class Camera:
             o = self._robotEstimatedOrientation
             o = tuple(np.array([p[0] + 50*np.cos(o), p[1] - 50*np.sin(o)]).astype(int))
             cv2.arrowedLine(frameCut,p,o,(255,0,0),2)
+
+        # Display the measured position and orientation
+        if self._robotMeasuredPosition is not None and self._robotMeasuredOrientation is not None:
+            # Display the position
+            p = tuple(self._robotMeasuredPosition.astype(int))
+            cv2.circle(frameCut,p,5,(0,0,255),-1)
+
+            # Display the orientation
+            o = self._robotMeasuredOrientation
+            o = tuple(np.array([p[0] + 50*np.cos(o), p[1] - 50*np.sin(o)]).astype(int))
+            cv2.arrowedLine(frameCut,p,o,(0,0,255),2)
 
 
         # Display the frame

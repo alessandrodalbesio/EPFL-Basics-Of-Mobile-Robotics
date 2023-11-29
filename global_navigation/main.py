@@ -1,39 +1,49 @@
+# Append the path of the parent directory
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import generic modules
 import numpy as np
 import matplotlib.pyplot as plt
+from utils.settings import *
+
+# Import path planning modules
 from shapely.geometry import Point, LineString, Polygon
 from dijkstra import DijkstraSPF, Graph
-from utils.settings import w_px, h_px
-import cv2
-import math
 
 class Global:
     
     def __init__(self, obstacles):
-        # all attribute of class
+        # Path planning attributes
         self.initialPoint = None
         self.finalPoint = None
+
+        # Map attributes
         self.obstacles = obstacles
         self.nb_pts = None
         self.all_points = None
-
         self.lines = None
 
+        # Path planning attributes
         self.optimal_path = None
         self.idx_goal_pt = 1
         self.goal_pt = None
+        self.goal_reached = False
 
     ## 1) Build visibility graph
 
-    def find_visible_lines(self):
-        """Connect each node together, and remove lines which cross obstacles.
-
+    def find_visible_lines(self, initialPoint, finalPoint):
+        """ Find the visible lines between all points, and remove lines which cross obstacles.
+        Args:
+            np.array([x,y]): Initial point 
+            np.array([x,y]): Final point        
         """
 
         # Create Shapely polygons
         polygons = [ Polygon(obstacle) for obstacle in self.obstacles]
     
         # Create an array of all points (initial, final points, and vertices)
-        goal_pts =  np.concatenate(([self.initialPoint],[self.finalPoint]))
+        goal_pts =  np.concatenate(([initialPoint],[finalPoint]))
         obstacles_pts = np.concatenate(self.obstacles)
         self.all_points = np.concatenate((goal_pts, obstacles_pts))
 
@@ -128,10 +138,7 @@ class Global:
             np.array([x,y]): Initial point 
             np.array([x,y]): Final point 
         """
-
-        self.initialPoint = initialPoint
-        self.finalPoint = finalPoint
-
+        self.find_visible_lines(initialPoint=initialPoint, finalPoint=finalPoint)
         weight_matrix = self.create_weight_matrix()
 
         nodes = np.arange(0, self.nb_pts, 1)
@@ -161,13 +168,14 @@ class Global:
         Returns:
             float: angle of the vector, in range [0,2pi]
         """
-    
+        # Compute the trajectory angle
         deltaX = self.goal_pt[0] - estimated_pt[0]
         deltaY = self.goal_pt[1] - estimated_pt[1]
         
         # All the angles are expressed in the range (O,2pi) for consistency
         traj_angle = (np.arctan2(deltaY, deltaX) + 2 * np.pi ) % (2 * np.pi)
         
+        # Return the trajectory angle
         return traj_angle
     
     def global_controller(self, estimated_pt,estimated_angle):
@@ -183,27 +191,18 @@ class Global:
             int: Left motor speed
             int: Right motor speed
         """
-        goal_achieved = False
-
-        # Defining thresholds, scaling coefficients, and nominal speed
-        dist_from_goal_thresh = 50 # TO BE CHANGED
-        angle_thresh = 0.2 # in rad, TO BE CHANGED
-        nominal_speed = 75 # TO BE CHANGED
-        k_angle = 50 # TO BE CHANGED
-        k_traj = 300 # TO BE CHANGED
-
         # Initial step
         if self.goal_pt is None :
             self.goal_pt = self.optimal_path[1]
 
         # Change intermediate goal point 
-        if np.linalg.norm(estimated_pt - self.goal_pt) < dist_from_goal_thresh:
+        if np.linalg.norm(estimated_pt - self.goal_pt) < DIST_FROM_GOAL_THRESH:
             # Arrived to goal point
             if ((self.goal_pt == self.optimal_path[-1]).all()):
                 motorLeft = 0
                 motorRight = 0
-                goal_achieved = True
-                return motorLeft,motorRight, goal_achieved
+                self.goal_reached = True
+                return motorLeft,motorRight
             
             # Update goal point
             self.idx_goal_pt = self.idx_goal_pt + 1
@@ -213,7 +212,7 @@ class Global:
         # Compute the trajectory angle
         traj_angle = self.compute_angle_traj(estimated_pt) 
 
-        # Compute the angle difference between the trajectory angle and the estimated angle
+        # Convert the measured angle in a range (-pi,pi)
         if 0 < traj_angle <= np.pi:
             if traj_angle <= estimated_angle <= traj_angle + np.pi:
                 angle_diff = estimated_angle - traj_angle
@@ -232,20 +231,12 @@ class Global:
                     angle_diff = estimated_angle - traj_angle
 
         # Update direction of robot
-        if (abs(angle_diff) > angle_thresh):
-            if angle_diff < 0:
-                motorLeft = - k_angle * abs(angle_diff)
-                motorRight = k_angle * abs(angle_diff)
-            else:
-                motorLeft = k_angle * abs(angle_diff)
-                motorRight = - k_angle * abs(angle_diff)
+        if (abs(angle_diff) > ANGLE_THRESH):
+            motorLeft = K_ANGLE * angle_diff
+            motorRight = K_ANGLE * angle_diff
         else:
-            if angle_diff > 0:
-                motorLeft = nominal_speed + k_traj * abs(angle_diff)
-                motorRight = nominal_speed
-            else:
-                motorLeft = nominal_speed
-                motorRight = nominal_speed + k_traj * abs(angle_diff)
+            motorLeft = NOMINAL_SPEED + (K_TRAJ * abs(angle_diff) if angle_diff > 0 else 0)
+            motorRight = NOMINAL_SPEED + (K_TRAJ * abs(angle_diff) if angle_diff < 0 else 0)
 
         # Return motor speeds
-        return motorLeft,motorRight, goal_achieved
+        return motorLeft,motorRight
