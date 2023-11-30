@@ -115,15 +115,13 @@ class Map:
         contours, _ = cv2.findContours(temp, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         # Approximate the contours with a polygon
         contours = [cv2.approxPolyDP(c, 0.01*cv2.arcLength(c,True), True) for c in contours]
-
+    
         ## Make the obstacles compatible with the path planning algorithm and enlarge them ##
         pols = []
         for c in contours:
             # Create a shapely polygon from the contour
             pol = Polygon([p[0] for p in c])
             points = np.array(pol.exterior.coords)
-            # Invert the y axis
-            points[:,1] = self.h_px - points[:,1]
             # Add the vertices to the list of obstacles
             self.obstacles_original.append(points)
             # Enlarge the polygon
@@ -147,8 +145,6 @@ class Map:
         for pol in pols:
             # Get the vertices of the polygon
             points = np.array(pol.exterior.coords)
-            # Invert the y axis
-            points[:,1] = self.h_px - points[:,1]
             # Add the vertices to the list of obstacles
             self.obstacles.append(points)
         
@@ -159,8 +155,11 @@ class Map:
             # Get the points that are outside the image
             points = points[np.logical_and(points[:,0]>=0,points[:,0]<=self.w_px)]
             points = points[np.logical_and(points[:,1]>=0,points[:,1]<=self.h_px)]
+            # Invert the y axis
+            points[:,1] = self.h_px - points[:,1]
             # Update the obstacle
-            self.obstacles[i] = points
+            self.obstacles[i] = points        
+        
 
     def getInitialFinalPoints(self):
         """ Get the initial and final points of the environment
@@ -179,8 +178,6 @@ class Map:
                 regionPoints = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
                 center = np.around(np.mean(regionPoints,axis=0))
-                # Invert the y axis
-                center[1] = self.h_px - center[1]
                 # Set the initial point
                 initialPoint = center
             if key == 4:
@@ -188,8 +185,6 @@ class Map:
                 regionPoints = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
                 center = np.around(np.mean(regionPoints,axis=0))
-                # Invert the y axis
-                center[1] = self.h_px - center[1]
                 # Set the final point
                 finalPoint = center
 
@@ -213,39 +208,14 @@ class Map:
                 # Estimate position of the robot
                 points = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
-                center = self.camera._invertYaxis([np.around(np.mean(points,axis=0))])[0]
+                center = np.around(np.mean(points,axis=0))
                 # Set the initial point
                 position = center
 
-                # Orientation new method
-                points = self.camera._invertYaxis(points)
-
                 # Compute the angle of the vector with respect to the x axis
-                #orientation = 0
-                #for i in [0]:
-                #    vector = points[(i+1)%len(points)]-points[i]
-                #    theta = np.arctan2(vector[1],vector[0])
-                #    #theta = (theta + 2*np.pi + i*np.pi/2)%(2*np.pi)
-                #    orientation += theta
-                #orientation /= len(points)
-                #if orientation < 0:
-                #    orientation += 2*np.pi
                 vector = points[1]-points[0]
                 orientation = np.arctan2(vector[1],vector[0])
                 orientation = (orientation + 2*np.pi)%(2*np.pi)
-                
-                #orientation = 0
-                #for i in range(len(points)):
-                    #vector = points[(i+1)%len(points)]-points[i]
-                    #orientation += np.arctan2(vector[1],vector[0]) + i*np.pi/2
-                #orientation /= len(points)
-                #orientation = (orientation + 2*np.pi)%(2*np.pi)
-                
-                # Find the median in the segment that goes from the point p[2] to p[3]
-                # vector = points[1]-points[0]
-                # Compute the angle of the vector with respect to the x axis
-                # orientation = np.arctan2(vector[1],vector[0])
-                # orientation = orientation if orientation > 0 else orientation + 2*np.pi
         
         if isInCm:
             position = self.convertToCm([position])[0]

@@ -233,7 +233,7 @@ class Global:
         # Update direction of robot
         if (abs(angle_diff) > ANGLE_THRESH):
             motorLeft = K_ANGLE * angle_diff
-            motorRight = K_ANGLE * angle_diff
+            motorRight = -K_ANGLE * angle_diff
         else:
             motorLeft = NOMINAL_SPEED + (K_TRAJ * abs(angle_diff) if angle_diff > 0 else 0)
             motorRight = NOMINAL_SPEED + (K_TRAJ * abs(angle_diff) if angle_diff < 0 else 0)
