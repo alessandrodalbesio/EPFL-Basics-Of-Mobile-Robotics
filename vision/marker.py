@@ -5,13 +5,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import generic modules
 import numpy as np
 from math import ceil
-from utils.logger import logger
 
 # Import vision modules
 import cv2
 
 # Import the ids of the markers from the setting file
-from utils.settings import ID_GOAL_MARKER, ID_ROBOT_MARKER, IDS_CORNER_MARKERS
+from utils.settings import *
 
 # Class definition
 class Marker:
@@ -85,10 +84,6 @@ class Marker:
         for i in range(len(imgs)):
             file_name = curr_dir+f'\\markers\\markers_{i}.png'
             cv2.imwrite(file_name,imgs[i])
-
-        # Display the log
-        logger.info(f"Markers generated successfully and saved in the file at {file_name}")
-
 
 
     def detect(self,cam,n_iterations=10):  

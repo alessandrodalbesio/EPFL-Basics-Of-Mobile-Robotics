@@ -5,8 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import generic modules
 import numpy as np
-from utils.settings import h_px, w_px,IDS_CORNER_MARKERS, CAMERA_ID, ITERATIONS_MAP_CREATION
-from utils.exceptions import NotEnoughMarkers, DoNotAccessError
+from utils.settings import *
 
 # Import camera modules
 import cv2
@@ -28,7 +27,7 @@ class Camera:
     """
 
     ## Management methods ##
-    def __init__(self,frame_path=None):
+    def __init__(self,frame_path=None,h_cm=h_cm,w_cm=w_cm,h_px=h_px,w_px=w_px):
         # Get the camera
         self.camera = None
         self.camera_frame = None
@@ -37,7 +36,9 @@ class Camera:
         else:
             self.camera_frame = cv2.imread(frame_path)
 
-        # Define h of the frame
+        # Define the sizes
+        self.h_cm = h_cm
+        self.w_cm = w_cm
         self.h_px = h_px
         self.w_px = w_px
 
@@ -46,12 +47,14 @@ class Camera:
         self.fieldAreaEstimation()
 
         # Define some parameters for real time display
-        self._obstacles = None
-        self._startPosition = None
-        self._goalPosition = None
-        self._robotEstimatedPosition = None
-        self._robotEstimatedOrientation = None
-
+        self.startPosition = None
+        self.goalPosition = None
+        self.robotEstimatedPosition = None
+        self.robotEstimatedOrientation = None
+        self.robotMeasuredPosition = None
+        self.robotMeasuredOrientation = None
+        self.obstacles = None
+        self.optimalPath = None
 
     def fieldAreaEstimation(self):
         """ Method that estimate based on the corner markers the region of the fieldArea """
@@ -60,21 +63,22 @@ class Camera:
 
         ## Markers detection ##
         # Define the region where the markers are
-        if self.camera is not None:
-            self.markersRegion = marker.detect(cam=self,n_iterations=ITERATIONS_MAP_CREATION)
-        else: 
-            self.markersRegion = marker.detect(cam=self,n_iterations=1)
+        self.markersRegion = marker.detect(cam=self,n_iterations=ITERATIONS_MAP_CREATION if self.camera is not None else 1)
+        
         # Remove the markers that are not used for corner detection
         self.markersRegion = {key: self.markersRegion[key] for key in self.markersRegion.keys() if key in IDS_CORNER_MARKERS}
+
         # Check that all the markers are detected
         if len(self.markersRegion) != 4:
-            raise NotEnoughMarkers("Not all the markers have been detected. Please check that all the markers are visible and that the camera is not too close to the fieldArea.")
+            raise Exception("Not all the markers have been detected. Please check that all the markers are visible and that the camera is not too close to the fieldArea.")
         
         ## Definition of the new reference system ##
         # Get only the origin of the markers
         self.fieldArea = [corner["points"][0] for corner in self.markersRegion.values() if corner["num_samples"] > 0]
+        
         # Define the target points
         target_points = [[0,self.h_px],[self.w_px,self.h_px],[self.w_px,0],[0,0]]
+        
         # Define the transformation matrix
         self.matrix = cv2.getPerspectiveTransform(np.float32(self.fieldArea),np.float32(target_points))
 
@@ -85,107 +89,6 @@ class Camera:
         ## Release the camera ##
         self.camera.release()
         cv2.destroyAllWindows()
-
-    def calibration(self):
-        """ Method to calibrate the camera
-
-        Raises:
-            NotImplementedError: This method is not implemented yet [TODO]
-        """
-        raise NotImplementedError
-
-    ## Methods for real time display ##
-    # Obstacles
-    @property
-    def obstacles(self):
-        raise DoNotAccessError
-    
-    @obstacles.setter
-    def obstacles(self,value):
-        """ Set the obstacles
-
-        Args:
-            value (list(np.array((n,2)))): Obstacles (each obstacle is a list of points)
-        """
-        # Invert y axis to make it compatible with opencv visualization
-        if value is not None:
-            for obstacle in value:
-                obstacle = self._invertYaxis(obstacle)
-                
-        # Set the obstacles
-        self._obstacles = value
-
-    # Start position
-    @property
-    def startPosition(self):
-        raise DoNotAccessError
-    
-    @startPosition.setter
-    def startPosition(self,value):
-        """ Set the start position
-
-        Args:
-            value (np.array((2,))): Start position
-        """
-        # Invert the y axis to make it compatible with opencv
-        value = self._invertYaxis([value])[0]
-
-        # Set the start position
-        self._startPosition = value
-    
-    # Goal position
-    @property
-    def goalPosition(self):
-        raise DoNotAccessError
-    
-    @goalPosition.setter
-    def goalPosition(self,value):
-        """ Set the goal position
-
-        Args:
-            value (np.array((2,))): Goal position
-        """
-        # Invert y axis to make it compatible with opencv
-        value = self._invertYaxis([value])[0]
-
-        # Set the goal position
-        self._goalPosition = value
-    
-    # Estimated position
-    @property
-    def robotEstimatedPosition(self):
-        raise DoNotAccessError
-    
-    @robotEstimatedPosition.setter
-    def robotEstimatedPosition(self,value):
-        """ Set the estimated position
-
-        Args:
-            value (np.array((2,))): Estimated position
-        """
-        # Invert y axis to make it compatible with opencv
-        value = self._invertYaxis([value])[0]
-
-        # Set the estimated position
-        self._robotEstimatedPosition = value
-
-    # Estimated orientation
-    @property
-    def robotEstimatedOrientation(self):
-        raise DoNotAccessError
-    
-    @robotEstimatedOrientation.setter
-    def robotEstimatedOrientation(self,value):
-        """ Set the estimated Orientation
-
-        Args:
-            value (np.array((2,))): Estimated Orientation
-        """
-        # Invert the y sign (because the y axis is inverted)
-        # value[1] = -value[1]
-
-        # Set the estimated Orientation
-        self._robotEstimatedOrientation = value
 
     # Display method
     def display(self):
@@ -198,35 +101,56 @@ class Camera:
         _, frameCut = self.get_frame()
 
         # Display the obstacles
-        if self._obstacles is not None:
-            for obstacle in self._obstacles:
+        if self.obstacles is not None:
+            for obstacle in self.obstacles:
                 for p in obstacle:
-                    p = tuple(p.astype(int))
-                    cv2.circle(frameCut,p,5,(0,0,255),-1)
+                    pp = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
+                    cv2.circle(frameCut,pp,5,(0,0,0),-1)
 
         # Display the start position
-        if self._startPosition is not None:
-            p = tuple(self._startPosition.astype(int))
+        if self.startPosition is not None:
+            p = tuple(np.array([self.startPosition[0], self.h_px - self.startPosition[1]]).astype(int))
             cv2.circle(frameCut,p,5,(0,255,0),-1)
             cv2.putText(frameCut,"Start",p,cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2,cv2.LINE_AA)
 
         # Display the goal position
-        if self._goalPosition is not None:
-            p = tuple(self._goalPosition.astype(int))
+        if self.goalPosition is not None:
+            p = tuple(np.array([self.goalPosition[0], self.h_px - self.goalPosition[1]]).astype(int))
             cv2.circle(frameCut,p,5,(0,255,0),-1)
             cv2.putText(frameCut,"Goal",p,cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2,cv2.LINE_AA)
 
         # Display the estimated position
-        if self._robotEstimatedPosition is not None and self._robotEstimatedOrientation is not None:
+        if self.robotEstimatedPosition is not None and self.robotEstimatedOrientation is not None:
             # Display the position
-            p = tuple(self._robotEstimatedPosition.astype(int))
+            p = tuple(np.array([self.robotEstimatedPosition[0], self.h_px - self.robotEstimatedPosition[1]]).astype(int))
             cv2.circle(frameCut,p,5,(255,0,0),-1)
 
             # Display the orientation
-            o = self._robotEstimatedOrientation
-            o = tuple(np.array([p[0] + 50*np.cos(o), p[1] + 50*np.sin(o)]).astype(int))
+            o = self.robotEstimatedOrientation
+            o = tuple(np.array([p[0] + 50*np.cos(o), p[1] - 50*np.sin(o)]).astype(int))
             cv2.arrowedLine(frameCut,p,o,(255,0,0),2)
 
+        # Display the measured position and orientation
+        if self.robotMeasuredPosition is not None and self.robotMeasuredOrientation is not None:
+            # Display the position
+            p = tuple(np.array([self.robotMeasuredPosition[0], self.h_px - self.robotMeasuredPosition[1]]).astype(int))
+            cv2.circle(frameCut,p,5,(0,0,255),-1)
+
+            # Display the orientation
+            o = self.robotMeasuredOrientation
+            o = tuple(np.array([p[0] + 50*np.cos(o), p[1] - 50*np.sin(o)]).astype(int))
+            cv2.arrowedLine(frameCut,p,o,(0,0,255),2)
+
+        # Display the optimal path
+        if self.optimalPath is not None:
+            for i in range(len(self.optimalPath)-1):
+                p1 = tuple(np.array([self.optimalPath[i][0], self.h_px - self.optimalPath[i][1]]).astype(int))
+                p2 = tuple(np.array([self.optimalPath[i+1][0], self.h_px - self.optimalPath[i+1][1]]).astype(int))
+                cv2.line(frameCut,p1,p2,(0,255,0),2)
+
+            for p in self.optimalPath:
+                p = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
+                cv2.circle(frameCut,p,5,(0,255,0),-1)
 
         # Display the frame
         cv2.imshow("Frame cut",frameCut)
@@ -257,22 +181,6 @@ class Camera:
         return frame, frameCut
 
     ## Utils methods ##
-    def _invertYaxis(self,points):
-        """ Invert the y axis of the points
-
-        Args:
-            points (np.array((2,n))): Points to invert
-
-        Returns:
-            np.array((2,n)): Inverted points
-        """
-        # Invert y axis
-        for i in range(len(points)):
-            points[i][1] = self.h_px - points[i][1]
-
-        # Return the points
-        return points
-
     def originToFieldReference(self,points):
         """ Convert the points into fieldArea from the origin reference system to the destination reference system
 
@@ -284,6 +192,9 @@ class Camera:
         """
         # Convert the points
         points = cv2.perspectiveTransform(np.float32([points]),self.matrix)[0]
+
+        # Invert the y axis to have the origin in the bottom left corner
+        points[:,1] = self.h_px - points[:,1]
 
         # Return the points
         return points

@@ -5,3 +5,4 @@ opencv-python
 shapely
 matplotlib
 dijkstra
+math

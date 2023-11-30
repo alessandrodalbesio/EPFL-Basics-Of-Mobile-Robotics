@@ -6,7 +6,7 @@ from vision.marker import Marker
 # Import generic modules
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.settings import w_px, h_px, w_cm, h_cm,ITERATIONS_MAP_CREATION,ITERATIONS_REAL_TIME_DETECTION,ID_ROBOT_MARKER
+from utils.settings import *
 
 # Import camera modules
 import cv2
@@ -28,18 +28,7 @@ class Map:
         w_px (int): Width of the environment [px]
         camera (Camera): Camera object
     """
-    # Public attributes
-    h = h_cm # Height of the environment [cm]
-    w = w_cm # Width of the environment [cm]
-    obstacles = [] # List of obstacles
-    obstacles_original = [] # List of obstacles
-
-    # Internal attributes
-    h_px = h_px # Height of the environment [px]
-    w_px = w_px # Width of the environment [px]
-    camera = None
-
-    def __init__(self, camera, numberOfObstacles=2, robotSize=25):
+    def __init__(self, camera, h_px = h_px, h_cm = h_cm, w_px = w_px, w_cm = w_cm, number_of_obstacles = NUMBER_OF_OBSTACLES, robot_size = ROBOT_SIZE):
         """ Constructor of the Map class
 
         Args:
@@ -47,10 +36,19 @@ class Map:
             numberOfObstacles (int, optional): Number of obstacles in the environment (need to be tuned based on the environment). Defaults to 2.
             robotSize (int, optional): Robot size (need to be tuned based on the robot). Defaults to 75.
         """
-        # Set
+        # Define some attributes
         self.camera = camera
-        self.nObstacles = numberOfObstacles
-        self.robotSize = robotSize
+        self.obstacles = []
+        self.obstacles_original = []
+
+        # Define the size of the environment
+        self.number_obstacles = number_of_obstacles
+        self.robotSize = robot_size
+        self.h_px = h_px
+        self.w_px = w_px
+        self.h = h_cm
+        self.w = w_cm
+
 
     def convertToPx(self, points):
         """ Convert the coordinates from cm to pixels
@@ -80,8 +78,13 @@ class Map:
             cmPoints.append([p[0]*self.w/self.w_px,p[1]*self.h/self.h_px])
         return np.array(cmPoints)
 
-    def findObstacles(self):
+    def findObstacles(self, number_of_obstacles=None, robot_size=None):
         """ Find the obstacles in the environment. They can be accessed through the obstacles attribute. The obstacles are already enlarged by the radius of the robot. All the vertices are expressed in cm. """
+        
+        if number_of_obstacles is None:
+            number_of_obstacles = self.number_obstacles
+        if robot_size is None:
+            robot_size = self.robotSize
 
         ## Find the obstacles in the image ##
         # Get a binary frame from the camera
@@ -89,7 +92,7 @@ class Map:
         # Convert the image to grayscale
         gray = cv2.cvtColor(frameCut, cv2.COLOR_BGR2GRAY)
         # Apply a threshold to the image
-        _, mask = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY) # [TODO] Value still to be tuned
+        _, mask = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
         # Invert the mask
         mask = cv2.bitwise_not(mask)
         # Create a temporary binary image
@@ -99,7 +102,7 @@ class Map:
         # Order the contours by area
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
         # Get the first N_obstacles contours
-        contours = contours[:self.nObstacles]
+        contours = contours[:number_of_obstacles]
         # Plot the contours on the binary image
         cv2.drawContours(temp,contours,-1,(255,255,255),-1)
 
@@ -112,19 +115,17 @@ class Map:
         contours, _ = cv2.findContours(temp, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         # Approximate the contours with a polygon
         contours = [cv2.approxPolyDP(c, 0.01*cv2.arcLength(c,True), True) for c in contours]
-
+    
         ## Make the obstacles compatible with the path planning algorithm and enlarge them ##
         pols = []
         for c in contours:
             # Create a shapely polygon from the contour
             pol = Polygon([p[0] for p in c])
             points = np.array(pol.exterior.coords)
-            # Invert the y axis
-            points[:,1] = self.h_px - points[:,1]
             # Add the vertices to the list of obstacles
             self.obstacles_original.append(points)
             # Enlarge the polygon
-            pol = pol.buffer(self.robotSize, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre)
+            pol = pol.buffer(robot_size, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre)
             # Add the vertices of the polygon to the list
             pols.append(pol)
 
@@ -144,20 +145,28 @@ class Map:
         for pol in pols:
             # Get the vertices of the polygon
             points = np.array(pol.exterior.coords)
-            # Invert the y axis
-            points[:,1] = self.h_px - points[:,1]
             # Add the vertices to the list of obstacles
             self.obstacles.append(points)
-
-        ## Convert the coordinates from pixels to cm ##
-        # self.obstacles = self.convertToCm(self.obstacles)
+        
+        # Iterate through the obstacles and remove the points that are outside the image
+        for i in range(len(self.obstacles)):
+            # Get the vertices of the obstacle
+            points = self.obstacles[i]
+            # Get the points that are outside the image
+            points = points[np.logical_and(points[:,0]>=0,points[:,0]<=self.w_px)]
+            points = points[np.logical_and(points[:,1]>=0,points[:,1]<=self.h_px)]
+            # Invert the y axis
+            points[:,1] = self.h_px - points[:,1]
+            # Update the obstacle
+            self.obstacles[i] = points        
+        
 
     def getInitialFinalPoints(self):
         """ Get the initial and final points of the environment
 
         Returns:
-            np.array([x,y]): Initial point [cm]
-            np.array([x,y]): Final point [cm]
+            np.array([x,y]): Initial point [px]
+            np.array([x,y]): Final point [px]
         """
         marker = Marker()
         # Define the region where the markers are
@@ -169,8 +178,6 @@ class Map:
                 regionPoints = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
                 center = np.around(np.mean(regionPoints,axis=0))
-                # Invert the y axis
-                center[1] = self.h_px - center[1]
                 # Set the initial point
                 initialPoint = center
             if key == 4:
@@ -178,14 +185,12 @@ class Map:
                 regionPoints = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
                 center = np.around(np.mean(regionPoints,axis=0))
-                # Invert the y axis
-                center[1] = self.h_px - center[1]
                 # Set the final point
                 finalPoint = center
 
-        return self.convertToCm(initialPoint), finalPoint
+        return initialPoint, finalPoint
 
-    def cameraRobotSensing(self):
+    def cameraRobotSensing(self, isInCm=False):
         """ Get the position and the otientation of the robot. The position and orientation is refreshed at a rate of 30Hz
 
         Returns:
@@ -203,24 +208,26 @@ class Map:
                 # Estimate position of the robot
                 points = self.camera.originToFieldReference(self.markersRegion[key]["points"])
                 # Compute the center of the region
-                center = self.camera._invertYaxis([np.around(np.mean(points,axis=0))])[0]
+                center = np.around(np.mean(points,axis=0))
                 # Set the initial point
                 position = center
 
-                # Find the median in the segment that goes from the point p[2] to p[3]
-                vector = points[1]-points[0]
                 # Compute the angle of the vector with respect to the x axis
+                vector = points[1]-points[0]
                 orientation = np.arctan2(vector[1],vector[0])
-                orientation = orientation if orientation > 0 else orientation + 2*np.pi
-                
+                orientation = (orientation + 2*np.pi)%(2*np.pi)
+        
+        if isInCm:
+            position = self.convertToCm([position])[0]
+
         return position, orientation
         
 
-    def plot(self, initialPoint=None, finalPoint=None, path=None, fps=None):
+    def plot(self, initialPoint=None, finalPoint=None):
         """Plot the map and the obstacles"""
         
         # Create a figure with the same size as the map
-        fig = plt.figure()
+        plt.figure()
 
         # Plot a geometric shape with the coordinates of the obstacles
         for obstacle in self.obstacles:
@@ -237,19 +244,10 @@ class Map:
             # Plot the shape
             plt.plot(plot_points[:,0],plot_points[:,1],color='red')
 
-        # Plot the path
-        if path is not None:
-            path = np.array(path)
-            plt.plot(path[:,0],path[:,1],marker='o',color='blue')
-
         # Plot the initial and final points if they are given
         if initialPoint is not None and finalPoint is not None:
             plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10)
             plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20)
-
-        # Plot the number of frames per second if it is given
-        if fps is not None:
-            plt.text(0,0,"FPS: {}".format(fps),color='white')
 
         # Set the limits of the plot
         plt.axis('equal')
