@@ -161,7 +161,7 @@ class Map:
             self.obstacles[i] = points        
         
 
-    def getInitialFinalPoints(self):
+    def getInitialFinalData(self):
         """ Get the initial and final points of the environment
 
         Returns:
@@ -180,6 +180,8 @@ class Map:
                 center = np.around(np.mean(regionPoints,axis=0))
                 # Set the initial point
                 initialPoint = center
+                # Get the initial orientation
+                initialOrientation = self.getRobotOrientation(regionPoints[0],regionPoints[1])
             if key == 4:
                 # Convert the points to the new reference system
                 regionPoints = self.camera.originToFieldReference(self.markersRegion[key]["points"])
@@ -188,7 +190,24 @@ class Map:
                 # Set the final point
                 finalPoint = center
 
-        return initialPoint, finalPoint
+        return initialPoint, initialOrientation, finalPoint       
+
+    def getRobotOrientation(self, initialPoint, finalPoint):
+        """ Get the orientation of the robot
+
+        Args:
+            initialPoint (np.array([x,y])): Initial point [px]
+            finalPoint (np.array([x,y])): Final point [px]
+
+        Returns:
+            int: Orientation of the robot (in radians)
+        """
+        # Compute the angle of the vector with respect to the x axis
+        vector = finalPoint-initialPoint
+        orientation = np.arctan2(vector[1],vector[0])
+        orientation = (orientation + 2*np.pi)%(2*np.pi)
+        return orientation
+
 
     def cameraRobotSensing(self, isInCm=False):
         """ Get the position and the otientation of the robot. The position and orientation is refreshed at a rate of 30Hz
@@ -200,8 +219,10 @@ class Map:
         marker = Marker()
         # Define the region where the markers are
         self.markersRegion = marker.detect(self.camera, n_iterations=ITERATIONS_REAL_TIME_DETECTION)
-        if(self.markersRegion == None):
-            return None, None
+        # Return None if no markers is detected in the map
+        if self.markersRegion is None:
+            return None,None
+        
         position = None
         orientation = None
         # Iterate through the markers
@@ -215,9 +236,7 @@ class Map:
                 position = center
 
                 # Compute the angle of the vector with respect to the x axis
-                vector = points[1]-points[0]
-                orientation = np.arctan2(vector[1],vector[0])
-                orientation = (orientation + 2*np.pi)%(2*np.pi)
+                orientation = self.getRobotOrientation(points[0],points[1])
         
         if isInCm:
             position = self.convertToCm([position])[0]
