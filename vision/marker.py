@@ -123,6 +123,9 @@ class Marker:
             corners.append(detected_corners)
             ids.append(detected_ids)
 
+#            if detected_ids is None or detected_corners is None:
+#                return None
+            
             for id in detected_ids:
                 if id not in unique_ids:
                     unique_ids.append(id)

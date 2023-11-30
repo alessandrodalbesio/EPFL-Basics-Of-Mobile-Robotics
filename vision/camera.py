@@ -101,11 +101,11 @@ class Camera:
         _, frameCut = self.get_frame()
 
         # Display the obstacles
-        if self.obstacles is not None:
-            for obstacle in self.obstacles:
-                for p in obstacle:
-                    pp = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
-                    cv2.circle(frameCut,pp,5,(0,0,0),-1)
+#        if self.obstacles is not None:
+#            for obstacle in self.obstacles:
+#                for p in obstacle:
+#                    pp = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
+#                    cv2.circle(frameCut,pp,5,(0,0,0),-1)
 
         # Display the start position
         if self.startPosition is not None:
@@ -142,15 +142,15 @@ class Camera:
             cv2.arrowedLine(frameCut,p,o,(0,0,255),2)
 
         # Display the optimal path
-        if self.optimalPath is not None:
-            for i in range(len(self.optimalPath)-1):
-                p1 = tuple(np.array([self.optimalPath[i][0], self.h_px - self.optimalPath[i][1]]).astype(int))
-                p2 = tuple(np.array([self.optimalPath[i+1][0], self.h_px - self.optimalPath[i+1][1]]).astype(int))
-                cv2.line(frameCut,p1,p2,(0,255,0),2)
+#        if self.optimalPath is not None:
+#            for i in range(len(self.optimalPath)-1):
+#                p1 = tuple(np.array([self.optimalPath[i][0], self.h_px - self.optimalPath[i][1]]).astype(int))
+#                p2 = tuple(np.array([self.optimalPath[i+1][0], self.h_px - self.optimalPath[i+1][1]]).astype(int))
+#                cv2.line(frameCut,p1,p2,(0,255,0),2)
 
-            for p in self.optimalPath:
-                p = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
-                cv2.circle(frameCut,p,5,(0,255,0),-1)
+#            for p in self.optimalPath:
+#                p = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
+#                cv2.circle(frameCut,p,5,(0,255,0),-1)
 
         # Display the frame
         cv2.imshow("Frame cut",frameCut)

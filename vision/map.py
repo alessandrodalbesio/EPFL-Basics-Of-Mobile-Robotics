@@ -200,6 +200,8 @@ class Map:
         marker = Marker()
         # Define the region where the markers are
         self.markersRegion = marker.detect(self.camera, n_iterations=ITERATIONS_REAL_TIME_DETECTION)
+        if(self.markersRegion == None):
+            return None, None
         position = None
         orientation = None
         # Iterate through the markers
