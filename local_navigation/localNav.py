@@ -4,18 +4,24 @@ class Local:
     def __init__(self):
         self.active_avoidance = False
         self.current_angle_theta = 0
+        self.last_obstacle_time = 0
     
-    def local_obstacle(self, prox_horizontal, angle_current, angle_goal):
+    def local_obstacle(self, prox_horizontal, angle_current, angle_goal, time):
         #test for local obstacles and update status
         obstacle_detected = max(prox_horizontal) > DIST_THRESH_LOCAL
         if(obstacle_detected):
             self.active_avoidance = True
-        #leave local avoidance if in the good direction
+        #leave local avoidance if no obstacle detected for a certain time
         elif(self.active_avoidance):
-            self.__calculate_angle_teta(angle_current, angle_goal)
-            self.active_avoidance = abs(self.current_angle_theta) >= ANGLE_THRESH_LOCAL
+            if(self.last_obstacle_time == 0):
+                self.last_obstacle_time = time
+            elif(time - self.last_obstacle_time > LOCAL_AVOIDANCE_DELAY):
+                self.last_obstacle_time = 0
+                self.active_avoidance = False
+            #self.__calculate_angle_teta(angle_current, angle_goal)
+            #self.active_avoidance = abs(self.current_angle_theta) >= ANGLE_THRESH_LOCAL
                 
-        return 
+        return self.active_avoidance
     
     def local_controller(self, prox_horizontal):
         #set speed considering next point to reach
