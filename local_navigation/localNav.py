@@ -18,7 +18,7 @@ class Local:
             elif(time - self.last_obstacle_time > LOCAL_AVOIDANCE_DELAY):
                 self.last_obstacle_time = 0
                 self.active_avoidance = False
-            #self.__calculate_angle_teta(angle_current, angle_goal)
+            self.__calculate_angle_teta(angle_current, angle_goal)
             #self.active_avoidance = abs(self.current_angle_theta) >= ANGLE_THRESH_LOCAL
                 
         return self.active_avoidance
