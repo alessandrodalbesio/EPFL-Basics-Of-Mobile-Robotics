@@ -104,6 +104,7 @@ class Global:
         # Plot initial an final points
         plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10)
         plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20)
+        plt.title('Visibility graph, with obstacles, initial, and final points')
         plt.show()
 
     ## 2) Find optimal path
@@ -132,31 +133,6 @@ class Global:
             weight_matrix[x_index,y_index] = line_dist
 
         return weight_matrix
-
-    #def create_weight_matrix(self):
-        """Builds the weight matrix by computing the distance between each connected points.
-
-        Returns:
-            np.array((n, n)): weight matrix
-        """
-
-        # Create an empty numpy array of size len(all_points)
-        self.nb_pts = len(self.all_points)
-        weight_matrix = np.zeros((self.nb_pts,self.nb_pts))
-
-        for i in range (len(self.lines)):
-
-            line_dist = self.lines[i].length
-
-            line_coord = np.array(self.lines[i].coords)
-
-            x_index = ((line_coord[0,0] == self.all_points[:,0]) & (line_coord[0,1] == self.all_points[:,1]))
-            y_index = ((line_coord[1,0] == self.all_points[:,0]) & (line_coord[1,1] == self.all_points[:,1]))
-
-            weight_matrix[x_index,y_index] = line_dist
-
-        return weight_matrix
-
 
     def find_optimal_path(self, initialPoint, finalPoint):
         """Finds optimal path using a weight matrix and the Dijkstra library
