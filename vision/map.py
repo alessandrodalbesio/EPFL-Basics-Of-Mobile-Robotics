@@ -275,4 +275,5 @@ class Map:
         # Don't add the axis
         plt.axis('off')
         plt.legend()
+        plt.title("Final optimal path")
         plt.show()
