@@ -112,6 +112,10 @@ class Marker:
             # Detect the markers
             detected_corners, detected_ids, _ = detector.detectMarkers(frame)
 
+            # Filter the case when no markers are detected
+            if detected_corners is None or detected_ids is None:
+                return None
+
             # Unpack the corners
             if detected_corners is not None:
                 detected_corners = [corner[0] for corner in detected_corners]
@@ -122,9 +126,6 @@ class Marker:
             # Append the corners found
             corners.append(detected_corners)
             ids.append(detected_ids)
-
-#            if detected_ids is None or detected_corners is None:
-#                return None
             
             for id in detected_ids:
                 if id not in unique_ids:

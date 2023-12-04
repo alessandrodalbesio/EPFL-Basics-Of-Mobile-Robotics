@@ -27,7 +27,7 @@ class Camera:
     """
 
     ## Management methods ##
-    def __init__(self,frame_path=None,h_cm=h_cm,w_cm=w_cm,h_px=h_px,w_px=w_px):
+    def __init__(self,frame_path=None,h_cm=h_cm,w_cm=w_cm,h_px=h_px,w_px=w_px,save_states=False):
         # Get the camera
         self.camera = None
         self.camera_frame = None
@@ -55,6 +55,9 @@ class Camera:
         self.robotMeasuredOrientation = None
         self.obstacles = None
         self.optimalPath = None
+        self.robotEstimatedPositionHistory = []
+        self.robotMeasuredPositionHistory = []
+        self.save_states = save_states
 
     def fieldAreaEstimation(self):
         """ Method that estimate based on the corner markers the region of the fieldArea """
@@ -101,11 +104,11 @@ class Camera:
         _, frameCut = self.get_frame()
 
         # Display the obstacles
-#        if self.obstacles is not None:
-#            for obstacle in self.obstacles:
-#                for p in obstacle:
-#                    pp = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
-#                    cv2.circle(frameCut,pp,5,(0,0,0),-1)
+        if self.obstacles is not None:
+            for obstacle in self.obstacles:
+                for p in obstacle:
+                    pp = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
+                    cv2.circle(frameCut,pp,5,(0,0,0),-1)
 
         # Display the start position
         if self.startPosition is not None:
@@ -119,11 +122,31 @@ class Camera:
             cv2.circle(frameCut,p,5,(0,255,0),-1)
             cv2.putText(frameCut,"Goal",p,cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2,cv2.LINE_AA)
 
+        # Display the optimal path
+        if self.optimalPath is not None:
+            for i in range(len(self.optimalPath)-1):
+                p1 = tuple(np.array([self.optimalPath[i][0], self.h_px - self.optimalPath[i][1]]).astype(int))
+                p2 = tuple(np.array([self.optimalPath[i+1][0], self.h_px - self.optimalPath[i+1][1]]).astype(int))
+                cv2.line(frameCut,p1,p2,(0,255,0),1)
+
+            for p in self.optimalPath:
+                p = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
+                cv2.circle(frameCut,p,5,(0,255,0),-1)
+
         # Display the estimated position
         if self.robotEstimatedPosition is not None and self.robotEstimatedOrientation is not None:
             # Display the position
-            p = tuple(np.array([self.robotEstimatedPosition[0], self.h_px - self.robotEstimatedPosition[1]]).astype(int))
-            cv2.circle(frameCut,p,5,(255,0,0),-1)
+            if not self.save_states:
+                p = tuple(np.array([self.robotEstimatedPosition[0], self.h_px - self.robotEstimatedPosition[1]]).astype(int))
+                cv2.circle(frameCut,p,5,(255,0,0),-1)
+            else:
+                # Save the position
+                self.robotEstimatedPositionHistory.append(self.robotEstimatedPosition)
+
+                # Display all the positions
+                for p in self.robotEstimatedPositionHistory:
+                    p = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
+                    cv2.circle(frameCut,p,5,(255,0,0),-1)
 
             # Display the orientation
             o = self.robotEstimatedOrientation
@@ -133,24 +156,22 @@ class Camera:
         # Display the measured position and orientation
         if self.robotMeasuredPosition is not None and self.robotMeasuredOrientation is not None:
             # Display the position
-            p = tuple(np.array([self.robotMeasuredPosition[0], self.h_px - self.robotMeasuredPosition[1]]).astype(int))
-            cv2.circle(frameCut,p,5,(0,0,255),-1)
+            if not self.save_states:
+                p = tuple(np.array([self.robotMeasuredPosition[0], self.h_px - self.robotMeasuredPosition[1]]).astype(int))
+                cv2.circle(frameCut,p,5,(0,0,255),-1)
+            else:
+                # Save the position
+                self.robotMeasuredPositionHistory.append(self.robotMeasuredPosition)
+
+                # Display all the positions
+                for p in self.robotMeasuredPositionHistory:
+                    p = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
+                    cv2.circle(frameCut,p,5,(0,0,255),-1)
 
             # Display the orientation
             o = self.robotMeasuredOrientation
             o = tuple(np.array([p[0] + 50*np.cos(o), p[1] - 50*np.sin(o)]).astype(int))
             cv2.arrowedLine(frameCut,p,o,(0,0,255),2)
-
-        # Display the optimal path
-#        if self.optimalPath is not None:
-#            for i in range(len(self.optimalPath)-1):
-#                p1 = tuple(np.array([self.optimalPath[i][0], self.h_px - self.optimalPath[i][1]]).astype(int))
-#                p2 = tuple(np.array([self.optimalPath[i+1][0], self.h_px - self.optimalPath[i+1][1]]).astype(int))
-#                cv2.line(frameCut,p1,p2,(0,255,0),2)
-
-#            for p in self.optimalPath:
-#                p = tuple(np.array([p[0], self.h_px - p[1]]).astype(int))
-#                cv2.circle(frameCut,p,5,(0,255,0),-1)
 
         # Display the frame
         cv2.imshow("Frame cut",frameCut)

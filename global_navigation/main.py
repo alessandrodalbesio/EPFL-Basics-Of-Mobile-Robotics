@@ -155,6 +155,10 @@ class Global:
 
         self.optimal_path = [ self.all_points[node] for node in optimal_nodes]
 
+        # Initial step
+        if self.goal_pt is None :
+            self.goal_pt = self.optimal_path[1]
+
     
     ## 3) Global navigation controller 
 
@@ -191,9 +195,6 @@ class Global:
             int: Left motor speed
             int: Right motor speed
         """
-        # Initial step
-        if self.goal_pt is None :
-            self.goal_pt = self.optimal_path[1]
 
         # Change intermediate goal point 
         if np.linalg.norm(estimated_pt - self.goal_pt) < DIST_FROM_GOAL_THRESH:

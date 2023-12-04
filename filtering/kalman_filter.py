@@ -12,6 +12,14 @@ class KalmanFilter:
         self.sigma_gpsx = 0.9
         self.sigma_gpsy = 0.9
         self.sigma_gpstheta = 0.9
+        self.turning_factor = 0.009
+        
+        #Tuned Factors: #These variables were tuned to minimize the error in the position estimation
+        self.speed_conv = 0.55
+        self.turning_factor = 0.085
+        self.speed_correct = 0.125
+        
+        
         self.A = np.diag([1, 1, 1])
         self.B = np.array([
             [1, 0],
@@ -28,61 +36,48 @@ class KalmanFilter:
         self.R = np.diag([self.sigma_gpsx**2, self.sigma_gpsy**2, self.sigma_gpstheta**2])
         self.P = np.diag([1, 1, 1])
         self.x = [x0[0], x0[1], angle]
-        self.speed_conv = 0.035 #16/500 #Measured in Ex8, converts thymio speed to cm/s
     
     def robot_speed(self, speed_left, speed_right):
         return ((speed_left + speed_right) / 2.0)
 
-    def update_kalman(self, wheel_speed_left, wheel_speed_right, camera_state, dt, camera_data):
+    def update_kalman(self, wheel_speed_left, wheel_speed_right, camera_state, dt, camera_data)
         if(dt == None):
             return self.x[0], self.x[1], self.x[2]
         self.dt = dt
-        #angle = camera_data[2]
         angle = self.x[2]
         if(((camera_data[0] == -1) and (camera_data[1] == -1) and (camera_data[2] == -1))):
             camera_state = 'off'
         v = self.robot_speed(wheel_speed_left*self.speed_conv, wheel_speed_right*self.speed_conv)  # Robot speed
-        #print("Speed in cm/s : ",v)
         self.dtheta = self.dt*(wheel_speed_right - wheel_speed_left) / self.wheelbase  # Robot angular speed
-        #print("dt : ", self.dt)
         self.ds = v * self.dt  # Robot displacement
         prev_x = self.x
         self.A = np.array([
-            [1, 0, 0],#self.ds * np.cos(self.x[2]+self.dtheta/2)],
-            [0, 1, 0],#self.ds * np.sin(self.x[2]+self.dtheta/2)],
+            [1, 0, 0],
+            [0, 1, 0],
             [0, 0, 1],
         ])
 
         self.B = np.array([
-            [0.5 * self.dt * np.cos(angle), 0.5 * self.dt * np.cos(angle)],#self.x[2]), 0.5 * self.dt * np.cos(self.x[2])],
-            [0.5 * self.dt * np.sin(angle), 0.5 * self.dt * np.sin(angle)],#self.x[2]), 0.5 * self.dt * np.sin(self.x[2]
-            [-1.0 / self.wheelbase, 1.0 / self.wheelbase],
+            [0.5 * self.dt * np.cos(angle)*self.speed_conv, 0.5 * self.dt * np.cos(angle)*self.speed_conv],
+            [0.5 * self.dt * np.sin(angle)*self.speed_conv, 0.5 * self.dt * np.sin(angle)*self.speed_conv],
+            [(-1.0*self.turning_factor)/ self.wheelbase, (1.0*self.turning_factor)/ self.wheelbase],
         ])
         # State vector: [x, y, theta]
-        u = [wheel_speed_left*self.speed_conv, wheel_speed_right*self.speed_conv]  # Replace with actual wheel velocity inputs
+        u = [wheel_speed_left*self.speed_correct, wheel_speed_right*self.speed_correct]  # Actual wheel velocity inputs
         self.x = self.A.dot(self.x) + np.dot(self.B,u)
-        #print("Deg change : ", np.dot(self.B,u))
         pred_x = self.x
-        #print("Speed   : ", v)
-        #print("A1 = ", self.A)
-        #print("Predicted advance : ", np.dot(self.B,u))
-        #print("Predicted position: ", self.x)
+
         if(camera_state == 'on'):
             # Prediction covariance
-            #self.P = self.B.dot(self.Q).dot(self.B.T) + self.P
             self.P = (self.A.dot(self.P).dot(self.A.T) + self.Q)
-            #print("A = ", self.A)
-            #print("P = ", self.P)
 
             # Update
             self.S = self.H.dot(self.P).dot(self.H.T) + self.R
             self.K = self.P.dot(self.H.T).dot(np.linalg.inv(self.S))
-            #print("K = ", self.K)
-            self.z = camera_data  # Replace with actual sensor measurements (X GPS, Y GPS, Theta GPS)
+            self.z = camera_data  # Actual sensor measurements (X GPS, Y GPS, Theta GPS)
             self.x = pred_x + self.K.dot(self.z - pred_x)
             actual_x = self.z
-            #print("Prev position : ", prev_x, " , Predicted position: ", pred_x, " , Actual position: ", actual_x)
-            #print("Dif = ", self.z - self.H.dot(pred_x))
+
             # Update covariance
             self.P = (np.eye(3) - self.K.dot(self.H)).dot(self.P)
         else:
