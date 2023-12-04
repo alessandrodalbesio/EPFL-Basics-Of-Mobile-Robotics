@@ -106,7 +106,49 @@ class Global:
 
     ## 2) Find optimal path
 
+    def find_outsider_pts(self):
+        """Identifies obstacle points which are outside the map
+        
+        Returns: 
+            list[k, 2]: outsider points
+        """
+        outsiders = []
+        for obstacle in self.obstacles:
+            for point in obstacle:
+                if ( point[0] < (- w_px)) or ( point[0] > w_px) or (point[1] < (-h_px)) or (point[1] > h_px):
+                    outsiders = outsiders + [point]
+        return outsiders
+
     def create_weight_matrix(self):
+        """Builds the weight matrix by computing the distance between each connected points.
+
+        Returns:
+            np.array((n, n)): weight matrix
+        """
+
+        # Create an empty numpy array of size len(all_points)
+        self.nb_pts = len(self.all_points)
+        weight_matrix = np.zeros((self.nb_pts,self.nb_pts))
+
+        for i in range (len(self.lines)):
+
+            line_dist = self.lines[i].length
+
+            line_coord = np.array(self.lines[i].coords)
+
+            x_index = ((line_coord[0,0] == self.all_points[:,0]) & (line_coord[0,1] == self.all_points[:,1]))
+            y_index = ((line_coord[1,0] == self.all_points[:,0]) & (line_coord[1,1] == self.all_points[:,1]))
+
+            outsiders = self.find_outsider_pts()
+
+            if (any((self.all_points[x_index]) in sublist for sublist in (outsiders)) or any((self.all_points[y_index]) in sublist for sublist in (outsiders))):
+                line_dist = np.inf
+
+            weight_matrix[x_index,y_index] = line_dist
+
+        return weight_matrix
+
+    #def create_weight_matrix(self):
         """Builds the weight matrix by computing the distance between each connected points.
 
         Returns:
@@ -241,3 +283,16 @@ class Global:
 
         # Return motor speeds
         return motorLeft,motorRight
+    
+
+    def local_goal_point_update(self, estimated_pt):
+        """If an obstacle is too close to the current goal point, the current goal point is changed to the next one, so that the robot doesn't get stuck.
+        
+        Args:
+            np.array([x,y]): Current estimated point 
+        """
+        dist_from_goal = np.linalg.norm(estimated_pt - self.goal_pt)
+        if (dist_from_goal < DIST_FROM_GOAL_THRESH_LOCAL):
+            # Update goal point
+            self.idx_goal_pt = self.idx_goal_pt + 1
+            self.goal_pt = self.optimal_path[self.idx_goal_pt]
