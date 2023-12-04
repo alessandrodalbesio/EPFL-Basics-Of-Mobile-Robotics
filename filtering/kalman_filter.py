@@ -12,12 +12,12 @@ class KalmanFilter:
         self.sigma_gpsx = 0.9
         self.sigma_gpsy = 0.9
         self.sigma_gpstheta = 0.9
-        self.turning_factor = 0.009
+        #self.turning_factor = 0.009
         
         #Tuned Factors: #These variables were tuned to minimize the error in the position estimation
-        self.speed_conv = 0.55
-        self.turning_factor = 0.085
-        self.speed_correct = 0.125
+        self.speed_conv = 0.15
+        self.turning_factor = 0.075
+        self.speed_correct = 0.3
         
         
         self.A = np.diag([1, 1, 1])
@@ -40,7 +40,13 @@ class KalmanFilter:
     def robot_speed(self, speed_left, speed_right):
         return ((speed_left + speed_right) / 2.0)
 
-    def update_kalman(self, wheel_speed_left, wheel_speed_right, camera_state, dt, camera_data):
+    def update_kalman(self, wheel_speed_left, wheel_speed_right, camera_state, dt, camera_data, sc, ac, speed):
+        if(sc!=0):
+            self.speed_conv = sc
+        if(ac!=0):
+            self.turning_factor = ac
+        if(speed!=0):
+            self.speed_correct = speed
         if(dt == None):
             return self.x[0], self.x[1], self.x[2]
         self.dt = dt
