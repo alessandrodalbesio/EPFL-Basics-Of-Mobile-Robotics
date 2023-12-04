@@ -13,6 +13,11 @@ from shapely.geometry import Point, LineString, Polygon
 from dijkstra import DijkstraSPF, Graph
 
 class Global:
+    """ This class implements the global navigation part of the project. The structure is as follows:
+    1) Build visibility graph
+    2) Find optimal path: weight matrix and Dijkstra algorithm
+    3) Global controller
+    """
     
     def __init__(self, obstacles):
         # Path planning attributes
@@ -116,7 +121,7 @@ class Global:
         outsiders = []
         for obstacle in self.obstacles:
             for point in obstacle:
-                if ( point[0] < (- w_px)) or ( point[0] > w_px) or (point[1] < (-h_px)) or (point[1] > h_px):
+                if ( point[0] < 0) or ( point[0] > w_px) or (point[1] < 0) or (point[1] > h_px):
                     outsiders = outsiders + [point]
         return outsiders
 
@@ -131,6 +136,7 @@ class Global:
         self.nb_pts = len(self.all_points)
         weight_matrix = np.zeros((self.nb_pts,self.nb_pts))
 
+        # Iterate over all lines to associate a distance weight
         for i in range (len(self.lines)):
 
             line_dist = self.lines[i].length
@@ -140,9 +146,11 @@ class Global:
             x_index = ((line_coord[0,0] == self.all_points[:,0]) & (line_coord[0,1] == self.all_points[:,1]))
             y_index = ((line_coord[1,0] == self.all_points[:,0]) & (line_coord[1,1] == self.all_points[:,1]))
 
+            # Call 'find_outsider_pts' function 
             outsiders = self.find_outsider_pts()
 
-            if (any((self.all_points[x_index]) in sublist for sublist in (outsiders)) or any((self.all_points[y_index]) in sublist for sublist in (outsiders))):
+            # Assign an infinite weight to points outside the map
+            if (all((self.all_points[x_index]) in sublist for sublist in (outsiders)) or all((self.all_points[y_index]) in sublist for sublist in (outsiders))):
                 line_dist = np.inf
 
             weight_matrix[x_index,y_index] = line_dist
@@ -181,24 +189,31 @@ class Global:
             np.array([x,y]): Initial point 
             np.array([x,y]): Final point 
         """
+
+        # Call 'find_visible_lines' function
         self.find_visible_lines(initialPoint=initialPoint, finalPoint=finalPoint)
         weight_matrix = self.create_weight_matrix()
 
+        # Initialize nodes and the graph which are input of the Dijkstra algorithm
         nodes = np.arange(0, self.nb_pts, 1)
         graph = Graph()
 
+        # Iterate over all point to create edges of the Dijkstra graph
         for i in range (self.nb_pts):
             for j in range (self.nb_pts):
                 if (weight_matrix[i,j] !=0):
                     graph.add_edge(nodes[i], nodes[j], weight_matrix[i,j])
 
-        dijkstra = DijkstraSPF(graph, nodes[0])
+        # Call the Dijkstra function
+        dijkstra = DijkstraSPF(graph, nodes[0]) # nodes[0] is the Initial Point
 
-        optimal_nodes = (dijkstra.get_path(nodes[1]))
+        # Get the optimal path from the Dijkstra structure created
+        optimal_nodes = (dijkstra.get_path(nodes[1])) # nodes[1] is the final point 
 
-        self.optimal_path = [ self.all_points[node] for node in optimal_nodes]
+        # Go back to point coordinates to store the path points
+        self.optimal_path = [ self.all_points[node] for node in optimal_nodes] 
 
-        # Initial step
+        # Goal point is initialized, for the followed control part
         if self.goal_pt is None :
             self.goal_pt = self.optimal_path[1]
 
@@ -239,8 +254,9 @@ class Global:
             int: Right motor speed
         """
 
-        # Change intermediate goal point 
+        # Change intermediate goal point
         if np.linalg.norm(estimated_pt - self.goal_pt) < DIST_FROM_GOAL_THRESH:
+
             # Arrived to goal point
             if ((self.goal_pt == self.optimal_path[-1]).all()):
                 motorLeft = 0
@@ -270,7 +286,6 @@ class Global:
         # Return motor speeds
         return motorLeft,motorRight
     
-
     def local_goal_point_update(self, estimated_pt):
         """If an obstacle is too close to the current goal point, the current goal point is changed to the next one, so that the robot doesn't get stuck.
         
