@@ -1,4 +1,5 @@
 from utils.settings import *
+from utils.tools import *
 
 class Local:
     def __init__(self):
@@ -18,9 +19,9 @@ class Local:
             elif(time - self.last_obstacle_time > LOCAL_AVOIDANCE_DELAY):
                 self.last_obstacle_time = 0
                 self.active_avoidance = False
-            self.__calculate_angle_teta(angle_current, angle_goal)
-            #self.active_avoidance = abs(self.current_angle_theta) >= ANGLE_THRESH_LOCAL
                 
+        self.__calculate_angle_teta(angle_current, angle_goal)
+
         return self.active_avoidance
     
     def local_controller(self, prox_horizontal):
@@ -42,5 +43,5 @@ class Local:
     
     def __calculate_angle_teta(self, angle_current, angle_goal):
         #difference between current and wanted angle
-        self.current_angle_theta = angle_current - angle_goal
+        self.current_angle_theta = -angle_diff_rel(angle_goal, angle_current)
         return

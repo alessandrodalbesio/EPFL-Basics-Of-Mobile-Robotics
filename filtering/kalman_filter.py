@@ -40,7 +40,7 @@ class KalmanFilter:
     def robot_speed(self, speed_left, speed_right):
         return ((speed_left + speed_right) / 2.0)
 
-    def update_kalman(self, wheel_speed_left, wheel_speed_right, camera_state, dt, camera_data)
+    def update_kalman(self, wheel_speed_left, wheel_speed_right, camera_state, dt, camera_data):
         if(dt == None):
             return self.x[0], self.x[1], self.x[2]
         self.dt = dt

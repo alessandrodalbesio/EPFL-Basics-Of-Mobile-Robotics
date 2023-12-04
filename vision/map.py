@@ -152,9 +152,6 @@ class Map:
         for i in range(len(self.obstacles)):
             # Get the vertices of the obstacle
             points = self.obstacles[i]
-            # Get the points that are outside the image
-            points = points[np.logical_and(points[:,0]>=0,points[:,0]<=self.w_px)]
-            points = points[np.logical_and(points[:,1]>=0,points[:,1]<=self.h_px)]
             # Invert the y axis
             points[:,1] = self.h_px - points[:,1]
             # Update the obstacle

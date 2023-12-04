@@ -6,6 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import matplotlib.pyplot as plt
 from utils.settings import *
+from utils.tools import *
 
 # Import path planning modules
 from shapely.geometry import Point, LineString, Polygon
@@ -256,22 +257,7 @@ class Global:
         traj_angle = self.compute_angle_traj(estimated_pt) 
 
         # Convert the measured angle in a range (-pi,pi)
-        if 0 < traj_angle <= np.pi:
-            if traj_angle <= estimated_angle <= traj_angle + np.pi:
-                angle_diff = estimated_angle - traj_angle
-            else:
-                if traj_angle + np.pi <= estimated_angle <= 2 * np.pi:
-                    angle_diff = estimated_angle - traj_angle - 2 * np.pi
-                else:
-                    angle_diff = estimated_angle - traj_angle
-        else:
-            if traj_angle - np.pi <= estimated_angle <= traj_angle:
-                angle_diff = estimated_angle - traj_angle
-            else:
-                if 0 <= estimated_angle <= traj_angle- np.pi:
-                    angle_diff = estimated_angle - traj_angle + 2 * np.pi
-                else:
-                    angle_diff = estimated_angle - traj_angle
+        angle_diff = angle_diff_rel(traj_angle, estimated_angle)
 
         # Update direction of robot
         if (abs(angle_diff) > ANGLE_THRESH):
@@ -292,7 +278,9 @@ class Global:
             np.array([x,y]): Current estimated point 
         """
         dist_from_goal = np.linalg.norm(estimated_pt - self.goal_pt)
+        print("dist_from_goal", dist_from_goal, "/", DIST_FROM_GOAL_THRESH_LOCAL)
         if (dist_from_goal < DIST_FROM_GOAL_THRESH_LOCAL):
             # Update goal point
+            print("updating goal point")
             self.idx_goal_pt = self.idx_goal_pt + 1
             self.goal_pt = self.optimal_path[self.idx_goal_pt]

@@ -29,7 +29,7 @@ class Marker:
         # Parameters
         a4_width = int(8.27 * 300)
         a4_height = int(11.69 * 300)
-        marker_size = 750 # Size of the marker
+        marker_size = 1000 # Size of the marker
         margin = 100 # The margin between the markers and the borders of the A4 paper
 
         # Compute the padding between the images
@@ -82,7 +82,7 @@ class Marker:
 
         # Save the image
         for i in range(len(imgs)):
-            file_name = curr_dir+f'\\markers\\markers_{i}.png'
+            file_name = curr_dir+f'\\markers\\markers_{i}.jpeg'
             cv2.imwrite(file_name,imgs[i])
 
 
