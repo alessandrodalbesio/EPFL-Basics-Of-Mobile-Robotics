@@ -230,7 +230,7 @@ class Map:
         return position, orientation
         
 
-    def plot(self, initialPoint=None, finalPoint=None):
+    def plot(self, initialPoint=None, finalPoint=None, path=None):
         """Plot the map and the obstacles"""
         
         # Create a figure with the same size as the map
@@ -242,24 +242,37 @@ class Map:
             # Add the last point to close the shape
             plot_points = np.vstack((plot_points,plot_points[0]))
             # Plot the shape
-            plt.fill(plot_points[:,0],plot_points[:,1],color='black')
+            if np.all(obstacle == self.obstacles[0]):
+                plt.plot(plot_points[:,0],plot_points[:,1],color='red',label='Enlarged obstacles')
+            else:
+                plt.plot(plot_points[:,0],plot_points[:,1],color='red')
 
         for obstacle in self.obstacles_original:
             plot_points = obstacle.copy()
             # Add the last point to close the shape
             plot_points = np.vstack((plot_points,plot_points[0]))
             # Plot the shape
-            plt.plot(plot_points[:,0],plot_points[:,1],color='red')
+            if np.all(obstacle == self.obstacles_original[0]):
+                plt.plot(plot_points[:,0],h_px - plot_points[:,1],color='blue',label='Obstacles')
+            else:
+                plt.plot(plot_points[:,0],h_px - plot_points[:,1],color='blue')
+
+        # Plot the path
+        if path is not None:
+            for i in range(len(path)-1):
+                if i == 0:
+                    plt.plot([path[i][0],path[i+1][0]],[path[i][1],path[i+1][1]],color='green',linewidth=2, linestyle="-.", label='Path')
+                else:
+                    plt.plot([path[i][0],path[i+1][0]],[path[i][1],path[i+1][1]],color='green',linewidth=2, linestyle="-.")
 
         # Plot the initial and final points if they are given
         if initialPoint is not None and finalPoint is not None:
-            plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10)
-            plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20)
-
-        
+            plt.plot(initialPoint[0],initialPoint[1],marker='8',color='black', markersize=10, label='Initial point')
+            plt.plot(finalPoint[0],finalPoint[1],marker='X',color='black', markersize=20, label='Final point')
 
         # Set the limits of the plot
         plt.axis('equal')
         # Don't add the axis
         plt.axis('off')
+        plt.legend()
         plt.show()

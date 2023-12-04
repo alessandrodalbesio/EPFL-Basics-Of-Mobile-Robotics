@@ -155,7 +155,7 @@ class Global:
             for j in range (self.nb_pts):
                 if (weight_matrix[i,j] !=0):
                     graph.add_edge(nodes[i], nodes[j], weight_matrix[i,j])
-
+        
         # Call the Dijkstra function
         dijkstra = DijkstraSPF(graph, nodes[0]) # nodes[0] is the Initial Point
 
