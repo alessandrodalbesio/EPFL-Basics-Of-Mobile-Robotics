@@ -128,17 +128,6 @@ class Map:
             pol = pol.buffer(robot_size, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre)
             # Add the vertices of the polygon to the list
             pols.append(pol)
-
-        # Verify if any of the polygons intersect
-        for i in range(len(pols)):
-            for j in range(i+1,len(pols)):
-                if pols[i].intersects(pols[j]):
-                    # If they intersect, take the union of the two polygons
-                    pols[i] = pols[i].union(pols[j])
-                    # Remove the second polygon
-                    pols.pop(j)
-                    # Decrement the index
-                    j -= 1
         
         # Convert the polygons to numpy arrays
         self.obstacles = []
