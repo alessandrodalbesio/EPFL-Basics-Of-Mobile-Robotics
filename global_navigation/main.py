@@ -19,9 +19,6 @@ class Global:
     """
     
     def __init__(self, obstacles):
-        # Path planning attributes
-        self.initialPoint = None
-        self.finalPoint = None
 
         # Map attributes
         self.obstacles = obstacles
@@ -78,12 +75,12 @@ class Global:
         self.lines = [line for line in all_lines if not any(line.crosses(polygon) or (line.within(polygon)) for polygon in polygons )]
 
 
-    def plot_visibility(self):
+    def plot_visibility(self,initialPoint, finalPoint):
         """Plots the map with obstacles, initial and final points, and all visible lines.
         """
 
         # Call 'find_visible_lines' to compute all lines which don't cross any obstacle
-        self.find_visible_lines(self.initialPoint, self.finalPoint)
+        self.find_visible_lines(initialPoint, finalPoint)
 
         # Create Shapely polygons
         polygons = [ Polygon(obstacle) for obstacle in self.obstacles]
@@ -105,24 +102,11 @@ class Global:
             plt.fill(x, y, alpha=0.3, color='green')
 
         # Plot initial an final points
-        plt.plot(self.initialPoint[0],self.initialPoint[1],marker='8',color='green', markersize=10)
-        plt.plot(self.finalPoint[0],self.finalPoint[1],marker='X',color='red', markersize=20)
+        plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10)
+        plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20)
         plt.show()
 
     ## 2) Find optimal path
-
-    def find_outsider_pts(self):
-        """Identifies obstacle points which are outside the map
-        
-        Returns: 
-            list[k, 2]: outsider points
-        """
-        outsiders = []
-        for obstacle in self.obstacles:
-            for point in obstacle:
-                if ( point[0] < 0) or ( point[0] > w_px) or (point[1] < 0) or (point[1] > h_px):
-                    outsiders = outsiders + [point]
-        return outsiders
 
     def create_weight_matrix(self):
         """Builds the weight matrix by computing the distance between each connected points.
@@ -144,13 +128,6 @@ class Global:
 
             x_index = ((line_coord[0,0] == self.all_points[:,0]) & (line_coord[0,1] == self.all_points[:,1]))
             y_index = ((line_coord[1,0] == self.all_points[:,0]) & (line_coord[1,1] == self.all_points[:,1]))
-
-            # Call 'find_outsider_pts' function 
-            outsiders = self.find_outsider_pts()
-
-            # Assign an infinite weight to points outside the map
-            if (all((self.all_points[x_index]) in sublist for sublist in (outsiders)) or all((self.all_points[y_index]) in sublist for sublist in (outsiders))):
-                line_dist = np.inf
 
             weight_matrix[x_index,y_index] = line_dist
 
