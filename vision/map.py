@@ -256,6 +256,8 @@ class Map:
             plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10)
             plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20)
 
+        
+
         # Set the limits of the plot
         plt.axis('equal')
         # Don't add the axis

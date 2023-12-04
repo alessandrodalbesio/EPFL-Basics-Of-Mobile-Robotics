@@ -83,7 +83,7 @@ class Global:
         """
 
         # Call 'find_visible_lines' to compute all lines which don't cross any obstacle
-        self.find_visible_lines()
+        self.find_visible_lines(self.initialPoint, self.finalPoint)
 
         # Create Shapely polygons
         polygons = [ Polygon(obstacle) for obstacle in self.obstacles]
