@@ -17,7 +17,7 @@ h_cm = 21*4
 w_px = 640
 h_px = round(w_px * h_cm / w_cm)
 NUMBER_OF_OBSTACLES = 2
-ROBOT_SIZE = 50
+ROBOT_SIZE = 25
 
 # Global navigation settings
 DIST_FROM_GOAL_THRESH = 5
@@ -38,3 +38,5 @@ LOCAL_AVOIDANCE_DELAY = 1.2
 
 # Kidnapping settings
 KIDNAPPING_CONV_THRESH = 4
+KIDNAPPING_THRESH = 50
+SLEEP_TIME_AFTER_KIDNAPPING = 5

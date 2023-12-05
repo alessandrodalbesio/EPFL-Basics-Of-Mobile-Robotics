@@ -22,11 +22,15 @@ class Global:
 
         # Map attributes
         self.obstacles = obstacles
+        
+        # Reset all the attributes of the class
+        self.reset()
+
+    def reset(self):
+        """Resets the attributes of the class. This function is called at the beginning of each new map."""
         self.nb_pts = None
         self.all_points = None
         self.lines = None
-
-        # Path planning attributes
         self.optimal_path = None
         self.idx_goal_pt = 1
         self.goal_pt = None
@@ -142,8 +146,13 @@ class Global:
             np.array([x,y]): Final point 
         """
 
-        # Call 'find_visible_lines' function
+        # Reset the attributes of the class
+        self.reset()
+
+        # Create visibility graph
         self.find_visible_lines(initialPoint=initialPoint, finalPoint=finalPoint)
+        
+        # Create weight matrix
         weight_matrix = self.create_weight_matrix()
 
         # Initialize nodes and the graph which are input of the Dijkstra algorithm
@@ -254,13 +263,12 @@ class Global:
         return motorLeft,motorRight
     
     def local_goal_point_update(self, estimated_pt):
-        """If an obstacle is too close to the current goal point, the current goal point is changed to the next one, so that the robot doesn't get stuck.
+        """If a local obstacle is too close to the current goal point, the current goal point is changed to the next one, so that the robot doesn't get stuck.
         
         Args:
             np.array([x,y]): Current estimated point 
         """
-        dist_from_goal = np.linalg.norm(estimated_pt - self.goal_pt)
-        if (dist_from_goal < DIST_FROM_GOAL_THRESH_LOCAL):
+        if (np.linalg.norm(estimated_pt - self.goal_pt) < DIST_FROM_GOAL_THRESH_LOCAL):
             # Update goal point
             self.idx_goal_pt = self.idx_goal_pt + 1
             self.goal_pt = self.optimal_path[self.idx_goal_pt]

@@ -227,7 +227,7 @@ class Map:
         if isInCm:
             position = self.convertToCm([position])[0]
 
-        return position, orientation
+        return position, self.convertToCm([position])[0], orientation
         
 
     def plot(self, initialPoint=None, finalPoint=None, path=None):
