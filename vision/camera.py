@@ -6,6 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import generic modules
 import numpy as np
 from utils.settings import *
+from time import *
 
 # Import camera modules
 import cv2
@@ -15,19 +16,21 @@ from vision.marker import Marker
 
 ##### Class definition #####
 class Camera:
-    """ This class implement all the method that are used to manage the camera. 
-    Don't use the getter methods to compute the position of the robot, obstacles, etc. but use the Map class instead.
-
-    Raises:
-        NotEnoughMarkers: If not all the markers are detected
-        NotImplementedError: If the method is not implemented yet
-
-    Returns:
-        Camera: Camera object
-    """
+    """ This class implement all the method that are used to manage the camera. """
 
     ## Management methods ##
-    def __init__(self,frame_path=None,h_cm=h_cm,w_cm=w_cm,h_px=h_px,w_px=w_px,save_states=False):
+    def __init__(self,frame_path=None,h_cm=h_cm,w_cm=w_cm,h_px=h_px,w_px=w_px,save_states=False,save_video=False):
+        """ Constructor of the class
+        
+        Args:
+            frame_path (str, optional): Path of the frame to load. If None, the camera will be used. Defaults to None.
+            h_cm (int, optional): Height of the fieldArea in cm. Defaults to h_cm.
+            w_cm (int, optional): Width of the fieldArea in cm. Defaults to w_cm.
+            h_px (int, optional): Height of the fieldArea in px. Defaults to h_px.
+            w_px (int, optional): Width of the fieldArea in px. Defaults to w_px.
+            save_states (bool, optional): If True, the states will be saved and shown in the real time video. Defaults to False.
+            save_video (bool, optional): If True, a video will be saved. Defaults to False.
+        """
         # Get the camera
         self.camera = None
         self.camera_frame = None
@@ -46,7 +49,7 @@ class Camera:
         self.fieldArea = None
         self.fieldAreaEstimation()
 
-        # Define some parameters for real time display
+        # Define class attributes
         self.startPosition = None
         self.goalPosition = None
         self.robotEstimatedPosition = None
@@ -58,6 +61,8 @@ class Camera:
         self.robotEstimatedPositionHistory = []
         self.robotMeasuredPositionHistory = []
         self.save_states = save_states
+        self.save_video = save_video
+        self.video_frames = []
 
     def fieldAreaEstimation(self):
         """ Method that estimate based on the corner markers the region of the fieldArea """
@@ -66,32 +71,47 @@ class Camera:
 
         ## Markers detection ##
         # Define the region where the markers are
-        self.markersRegion = marker.detect(cam=self,n_iterations=ITERATIONS_MAP_CREATION if self.camera is not None else 1)
+        markersRegion = marker.detect(cam=self,n_iterations=ITERATIONS_MAP_CREATION if self.camera is not None else 1)
         
         # Remove the markers that are not used for corner detection
-        self.markersRegion = {key: self.markersRegion[key] for key in self.markersRegion.keys() if key in IDS_CORNER_MARKERS}
+        markersRegion = {key: markersRegion[key] for key in markersRegion.keys() if key in IDS_CORNER_MARKERS}
 
         # Check that all the markers are detected
-        if len(self.markersRegion) != 4:
-            raise Exception("Not all the markers have been detected. Please check that all the markers are visible and that the camera is not too close to the fieldArea.")
+        if len(markersRegion) != 4:
+            not_detected = [key for key in IDS_CORNER_MARKERS if key not in markersRegion.keys()]
+            raise Exception(f"Not all the markers have been detected: ({not_detected}). Please check that all the markers are visible and that the camera is not too close to the fieldArea.")
         
         ## Definition of the new reference system ##
-        # Get only the origin of the markers
-        self.fieldArea = [corner["points"][0] for corner in self.markersRegion.values() if corner["num_samples"] > 0]
+        # Get only the origin of the markers (expressed in the OpenCV reference system)
+        self.fieldArea = [corner["points"][0] for corner in markersRegion.values() if corner["num_samples"] > 0]
         
         # Define the target points
         target_points = [[0,self.h_px],[self.w_px,self.h_px],[self.w_px,0],[0,0]]
         
-        # Define the transformation matrix
+        # Define the perspective transformation matrix
         self.matrix = cv2.getPerspectiveTransform(np.float32(self.fieldArea),np.float32(target_points))
 
     def release(self):
         """ Clear the camera """
         if self.camera == None:
             return
+        
         ## Release the camera ##
         self.camera.release()
         cv2.destroyAllWindows()
+
+        ## Save the video ##
+        if self.save_video:
+            total_time = self.video_frames[-1]['time'] - self.video_frames[0]['time']
+            fps = round(len(self.video_frames)/total_time,2)
+            # Define the codec and create VideoWriter object
+            fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+            out = cv2.VideoWriter('demo_video.mp4',fourcc, fps, (self.w_px,self.h_px))
+            # Write the frames
+            for frame in self.video_frames:
+                out.write(frame)
+            # Release the video
+            out.release()
 
     # Display method
     def display(self):
@@ -173,9 +193,16 @@ class Camera:
             o = tuple(np.array([p[0] + 50*np.cos(o), p[1] - 50*np.sin(o)]).astype(int))
             cv2.arrowedLine(frameCut,p,o,(0,0,255),2)
 
+        self.video_frames.append({
+            'frame': frameCut,
+            'time': time.time()
+        })
+
         # Display the frame
         cv2.imshow("Frame cut",frameCut)
         return cv2.waitKey(1) & 0xFF == ord('q')
+    
+    
 
     ## Frame management methods ##
 

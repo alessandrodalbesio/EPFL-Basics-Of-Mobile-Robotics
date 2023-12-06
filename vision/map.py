@@ -19,26 +19,25 @@ class Map:
     """ Map of the environment 
     
     Public Attributes:
-        h (float): Height of the environment [cm]
-        w (float): Width of the environment [cm]
-        obstacles (list): List of obstacles. This is a numpy array of numpy arrays of shape (n,2) where n is the number of vertices of the obstacle given in clockwise order. 
-                          The obstacle are already enlarged by the radius of the robot. All the vertices are expressed in cm.
-    Internal Attributes:
-        h_px (int): Height of the environment [px]
-        w_px (int): Width of the environment [px]
-        camera (Camera): Camera object
+        obstacles (np.array(n,2)): List of obstacles where n is the number of vertices of the obstacle given in clockwise order. The obstacle are already enlarged by the radius of the robot. All the vertices are expressed in px.
+        obstacles_original (np.array(n,2)): List of obstacles where n is the number of vertices of the obstacle given in clockwise order. The obstacle are not enlarged. All the vertices are expressed in px.
+
     """
     def __init__(self, camera, h_px = h_px, h_cm = h_cm, w_px = w_px, w_cm = w_cm, number_of_obstacles = NUMBER_OF_OBSTACLES, robot_size = ROBOT_SIZE):
         """ Constructor of the Map class
 
         Args:
             camera (Camera): Camera object
-            numberOfObstacles (int, optional): Number of obstacles in the environment (need to be tuned based on the environment). Defaults to 2.
-            robotSize (int, optional): Robot size (need to be tuned based on the robot). Defaults to 75.
+            h_px (int, optional): Height of the environment [px]. Defaults to h_px.
+            h_cm (int, optional): Height of the environment [cm]. Defaults to h_cm.
+            w_px (int, optional): Width of the environment [px]. Defaults to w_px.
+            w_cm (int, optional): Width of the environment [cm]. Defaults to w_cm.
+            numberOfObstacles (int, optional): Number of obstacles in the environment (need to be tuned based on the environment). Defaults to NUMBER_OF_OBSTACLES.
+            robotSize (int, optional): Robot size (need to be tuned based on the robot). Defaults to ROBOT_SIZE.
         """
         # Define some attributes
         self.camera = camera
-        self.obstacles = []
+        self.obstacles = [] # List of obstacles (np.array((n,2) where n is the number of vertices of the obstacle given in clockwise order). The obstacle are already enlarged by the radius of the robot. All the vertices are expressed in px.
         self.obstacles_original = []
 
         # Define the size of the environment
@@ -78,13 +77,13 @@ class Map:
             cmPoints.append([p[0]*self.w/self.w_px,p[1]*self.h/self.h_px])
         return np.array(cmPoints)
 
-    def findObstacles(self, number_of_obstacles=None, robot_size=None):
-        """ Find the obstacles in the environment. They can be accessed through the obstacles attribute. The obstacles are already enlarged by the radius of the robot. All the vertices are expressed in cm. """
+    def findObstacles(self):
+        """ Find the obstacles in the environment. They can be accessed through the obstacles and obstacles_original attributes.
         
-        if number_of_obstacles is None:
-            number_of_obstacles = self.number_obstacles
-        if robot_size is None:
-            robot_size = self.robotSize
+        Args:
+            number_of_obstacles (int, optional): Number of obstacles in the environment (need to be tuned based on the environment). Defaults to NUMBER_OF_OBSTACLES.
+            robot_size (int, optional): Robot size (need to be tuned based on the robot). Defaults to ROBOT_SIZE.
+        """
 
         ## Find the obstacles in the image ##
         # Get a binary frame from the camera
@@ -102,11 +101,11 @@ class Map:
         # Order the contours by area
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
         # Get the first N_obstacles contours
-        contours = contours[:number_of_obstacles]
+        contours = contours[:self.number_obstacles]
         # Plot the contours on the binary image
         cv2.drawContours(temp,contours,-1,(255,255,255),-1)
 
-        ## Smooth the obstacles in the image ##
+        ## Remove any rounded part in the obstacles ##
         # Find convex hulls to smooth the obstacles in the image
         hulls = [cv2.convexHull(c) for c in contours]
         # Plot the convex hulls on the binary image
@@ -125,26 +124,19 @@ class Map:
             # Add the vertices to the list of obstacles
             self.obstacles_original.append(points)
             # Enlarge the polygon
-            pol = pol.buffer(robot_size, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre)
+            pol = pol.buffer(self.robotSize, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre)
             # Add the vertices of the polygon to the list
             pols.append(pol)
         
-        # Convert the polygons to numpy arrays
+        # Convert the polygons to numpy arrays and invert the y axis
         self.obstacles = []
         for pol in pols:
             # Get the vertices of the polygon
             points = np.array(pol.exterior.coords)
-            # Add the vertices to the list of obstacles
-            self.obstacles.append(points)
-        
-        # Iterate through the obstacles and remove the points that are outside the image
-        for i in range(len(self.obstacles)):
-            # Get the vertices of the obstacle
-            points = self.obstacles[i]
             # Invert the y axis
             points[:,1] = self.h_px - points[:,1]
-            # Update the obstacle
-            self.obstacles[i] = points        
+            # Add the vertices to the list of obstacles
+            self.obstacles.append(points)      
         
 
     def getInitialFinalData(self):
@@ -186,7 +178,7 @@ class Map:
             finalPoint (np.array([x,y])): Final point [px]
 
         Returns:
-            int: Orientation of the robot (in radians)
+            int: Orientation of the robot (in radiants)
         """
         # Compute the angle of the vector with respect to the x axis
         vector = finalPoint-initialPoint
@@ -200,7 +192,7 @@ class Map:
 
         Returns:
             np.array([x,y]): Position of the robot [cm]
-            int: Orientation of the robot (in radians)
+            int: Orientation of the robot (in radiants)
         """ 
         marker = Marker()
         # Define the region where the markers are
@@ -270,9 +262,7 @@ class Map:
             plt.plot(initialPoint[0],initialPoint[1],marker='8',color='black', markersize=10, label='Initial point')
             plt.plot(finalPoint[0],finalPoint[1],marker='X',color='black', markersize=20, label='Final point')
 
-        # Set the limits of the plot
         plt.axis('equal')
-        # Don't add the axis
         plt.axis('off')
         plt.legend()
         plt.title("Final optimal path")
