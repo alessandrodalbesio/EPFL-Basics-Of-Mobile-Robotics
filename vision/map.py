@@ -154,6 +154,7 @@ class Map:
         # Define the region where the markers are
         self.markersRegion = marker.detect(self.camera, n_iterations=ITERATIONS_MAP_CREATION)
         # Finf the marker with ID 4
+        initialPoint = initialOrientation = finalPoint = None
         for key in self.markersRegion.keys():
             if key == 5:
                 # Convert the points to the new reference system
@@ -171,6 +172,9 @@ class Map:
                 center = np.around(np.mean(regionPoints,axis=0))
                 # Set the final point
                 finalPoint = center
+
+        if initialPoint is None or finalPoint is None:
+            raise Exception("Initial or final point not found")
 
         return initialPoint, initialOrientation, finalPoint       
 
