@@ -49,24 +49,21 @@ class Global:
         polygons = [ Polygon(obstacle) for obstacle in self.obstacles]
     
         # Create an array of all points (initial, final points, and vertices)
-        goal_pts =  np.concatenate(([initialPoint],[finalPoint]))
-        obstacles_pts = np.concatenate(self.obstacles)
-        self.all_points = np.concatenate((goal_pts, obstacles_pts))
+        self.all_points =  np.concatenate(([initialPoint],[finalPoint]))
+        for obstacle in self.obstacles:
+            obstacle_points = np.array(obstacle)[:-1]
+            self.all_points = np.concatenate((self.all_points, obstacle_points))
 
         # Connecting all points 
         all_lines = []
-
+        lines_indecies = []
         for i in range(len(self.all_points)):
         
                 # Define current point
                 p1 = Point(self.all_points[i])
 
                 # Iterate through other points 
-                for j in range(len(self.all_points)):
-
-                    # Skip if the same point
-                    if i==j:
-                        continue
+                for j in range(i+1,len(self.all_points)):
 
                     # Define the other point
                     p2 = Point(self.all_points[j])
@@ -74,10 +71,18 @@ class Global:
                     # Create a line segment between the two points 
                     segment = LineString([p1, p2])
                     all_lines.extend([segment])
+                    lines_indecies.extend([(i,j)])
 
         # Filter to remove lines which intersect the polygons
-        self.lines = [line for line in all_lines if not any(line.crosses(polygon) or (line.within(polygon)) for polygon in polygons )]
-
+        self.lines = all_lines.copy()
+        self.lines_indecies = lines_indecies.copy()
+        for i in range(len(all_lines)):
+            line = all_lines[i]
+            for pol in polygons:
+                if line.crosses(pol) or line.within(pol):
+                    self.lines.remove(line)
+                    self.lines_indecies.remove(lines_indecies[i])
+                    break
 
     def plot_visibility(self,initialPoint, finalPoint):
         """Plots the map with obstacles, initial and final points, and all visible lines.
@@ -109,6 +114,7 @@ class Global:
         plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10)
         plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20)
         plt.title('Visibility graph, with obstacles, initial, and final points')
+        plt.axis('off')
         plt.show()
 
     ## 2) Find optimal path
@@ -128,13 +134,13 @@ class Global:
         for i in range (len(self.lines)):
 
             line_dist = self.lines[i].length
-
             line_coord = np.array(self.lines[i].coords)
 
-            x_index = ((line_coord[0,0] == self.all_points[:,0]) & (line_coord[0,1] == self.all_points[:,1]))
-            y_index = ((line_coord[1,0] == self.all_points[:,0]) & (line_coord[1,1] == self.all_points[:,1]))
+            x_index = self.lines_indecies[i][0]
+            y_index = self.lines_indecies[i][1]
 
             weight_matrix[x_index,y_index] = line_dist
+            weight_matrix[y_index,x_index] = line_dist
 
         return weight_matrix
 
@@ -162,12 +168,11 @@ class Global:
         # Iterate over all point to create edges of the Dijkstra graph
         for i in range (self.nb_pts):
             for j in range (self.nb_pts):
-                if (weight_matrix[i,j] !=0):
+                if (weight_matrix[i,j] != 0):
                     graph.add_edge(nodes[i], nodes[j], weight_matrix[i,j])
         
         # Call the Dijkstra function
         dijkstra = DijkstraSPF(graph, nodes[0]) # nodes[0] is the Initial Point
-
         # Get the optimal path from the Dijkstra structure created
         optimal_nodes = (dijkstra.get_path(nodes[1])) # nodes[1] is the final point 
 
