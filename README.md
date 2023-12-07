@@ -10,8 +10,8 @@ This project has been done by:
 Details on the choices made and the implementation can be found in the report.
 ### Results
 ##### Global navigation
-![](https://github.com/loufla/BOMR-17/blob/main/_report_data/gifs/global_navigation.gif)
+![](https://github.com/loufla/BOMR-17/blob/main/_report_data/readme_gifs/global_navigation.gif)
 ##### Local navigation
-![](https://github.com/loufla/BOMR-17/blob/main/_report_data/gifs/local_navigation.gif)
+![](https://github.com/loufla/BOMR-17/blob/main/_report_data/readme_gifs/local_navigation.gif)
 ##### Kidnapping
-![](https://github.com/loufla/BOMR-17/blob/main/_report_data/gifs/kidnapping.gif)
+![](https://github.com/loufla/BOMR-17/blob/main/_report_data/readme_gifs/kidnapping.gif)
