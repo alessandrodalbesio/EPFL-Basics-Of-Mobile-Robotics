@@ -58,6 +58,8 @@ class Map:
         Returns:
             np.array((n,2)): Points in pixels
         """
+        if points is None:
+            return None
         pxPoints = []
         for p in points:
             pxPoints.append([int(p[0]*self.w_px/self.w),int(p[1]*self.h_px/self.h)])
@@ -72,6 +74,8 @@ class Map:
         Returns:
             np.array((n,2)): Points in cm
         """
+        if points is None:
+            return None
         cmPoints = []
         for p in points:
             cmPoints.append([p[0]*self.w/self.w_px,p[1]*self.h/self.h_px])
@@ -187,7 +191,7 @@ class Map:
         return orientation
 
 
-    def cameraRobotSensing(self, isInCm=False):
+    def cameraRobotSensing(self):
         """ Get the position and the otientation of the robot. The position and orientation is refreshed at a rate of 30Hz
 
         Returns:
@@ -199,7 +203,7 @@ class Map:
         self.markersRegion = marker.detect(self.camera, n_iterations=ITERATIONS_REAL_TIME_DETECTION)
         # Return None if no markers is detected in the map
         if self.markersRegion is None:
-            return None,None
+            return None,None,None
         
         position = None
         orientation = None
@@ -216,10 +220,11 @@ class Map:
                 # Compute the angle of the vector with respect to the x axis
                 orientation = self.getRobotOrientation(points[0],points[1])
         
-        if isInCm:
-            position = self.convertToCm([position])[0]
+        position_cm = None
+        if position is not None:
+            position_cm = self.convertToCm([position])[0]
 
-        return position, self.convertToCm([position])[0], orientation
+        return position, position_cm, orientation
         
 
     def plot(self, initialPoint=None, finalPoint=None, path=None):

@@ -10,7 +10,9 @@ from vision.map import * # Import map library
 from filtering.kalman_filter import * # Import Kalman filter
 
 
-async def demo():
+async def demo(save_video_path=None):
+    save_video = save_video_path is not None
+
     ##### Variables definition #####
     start = goal = None
     robotPos_estimated = robotOrientation_estimated = None
@@ -26,7 +28,7 @@ async def demo():
         await node.lock()
 
         ##### Map creation and variables definition #####
-        cam = Camera(save_video=True)
+        cam = Camera(save_video=save_video, save_video_name=save_video_path)
         map = Map(cam, number_of_obstacles=NUMBER_OF_OBSTACLES, robot_size=ROBOT_SIZE)
         map.findObstacles()
         glob = Global(map.obstacles)
@@ -46,8 +48,12 @@ async def demo():
                 glob.find_optimal_path(start, goal)
                 
                 # Initialize the kalman filter
-                kalman = KalmanFilter(map.convertToCm([start[0], start[1], 0])[0], (initialOrientation+2*np.pi) % 2*np.pi)
+                initialOrientation = (initialOrientation + 2 * np.pi) % (2 * np.pi)
+                if initialOrientation > np.pi:
+                    initialOrientation = initialOrientation - 2 * np.pi
+                kalman = KalmanFilter(map.convertToCm([start])[0], initialOrientation)
                 robotPos_estimated = np.array([start[0], start[1]])
+                
                 # Define attributes for the real time camera display
                 cam.startPosition = start
                 cam.goalPosition = goal
@@ -65,13 +71,7 @@ async def demo():
             prox_horizontal_measured = node["prox.horizontal"]
             left_speed_measured = node["motor.left.speed"]
             right_speed_measured = node["motor.right.speed"]
-            robotPos_measured, robotPos_measured_cm, cameraOrientation_measured = map.cameraRobotSensing() # Robot position and orientation from the camera
-
-            if((robotPos_measured is None) or (cameraOrientation_measured is None)):
-                camera_state = 'off'
-            else:
-                camera_state = 'on'
-
+            robotPos_measured, robotPos_measured_cm, robotOrientation_measured = map.cameraRobotSensing() # Robot position and orientation from the camera
 
             # Kidnapping management
             if robotPos_estimated is not None and robotPos_measured is not None and np.linalg.norm(robotPos_measured-robotPos_estimated) > KIDNAPPING_THRESH:
@@ -91,24 +91,20 @@ async def demo():
                 # Position estimation
                 time_sampling = time() - time_last_sample
 
-                if((cameraPos_measured is None) or (cameraOrientation_measured is None)):
-                    cam_x = cam_y = cam_theta = -1
+                # Understand if the camera is on or off and transform the angle in the correct way
+                cam_x = cam_y = cam_theta = -1
+                camera_state = 'on'
+                if(robotPos_measured is None):
                     camera_state = 'off'
                 else:
-                    if(camera_state != 'off' ):
-                        robotPos_measured_cm, cameraOrientation_measured_rad = map.cameraRobotSensing(isInCm=True) # Robot position and orientation from the camera
-                        if(not(robotPos_measured_cm is None) and not(cameraOrientation_measured_rad is None)):
-                            cam_x = robotPos_measured_cm[0]
-                            cam_y = robotPos_measured_cm[1]
-                        else:
-                            cam_x = cam_y = -1
-                            camera_state = 'off'
-                        if(not(cameraOrientation_measured_rad is None)):
-                            if((cameraOrientation_measured_rad > np.pi)):
-                                cam_theta = cameraOrientation_measured_rad - 2*np.pi
-                            else:
-                                cam_theta = cameraOrientation_measured_rad
-                time_sampling = time() - time_last_sample
+                    cam_x = robotPos_measured_cm[0]
+                    cam_y = robotPos_measured_cm[1]
+                    if((robotOrientation_measured > np.pi)):
+                        cam_theta = robotOrientation_measured - 2*np.pi
+                    else:
+                        cam_theta = robotOrientation_measured
+                
+                # Kalman filter
                 [pos_estimated_x, pos_estimated_y, pos_estimated_theta, sp_estimated_lw, sp_estimated_rw] = kalman.update_kalman(d_wl, d_wr, left_speed_measured, right_speed_measured, camera_state, time_sampling, np.array([cam_x, cam_y, cam_theta]))
                 robotPos_estimated = np.array([pos_estimated_x, pos_estimated_y])
                 robotPos_estimated = map.convertToPx([robotPos_estimated])[0]
@@ -124,9 +120,9 @@ async def demo():
 
                 # Control
                     
-                if(cameraPos_measured is None or cameraOrientation_measured is None):
+                if(robotPos_measured is None or robotOrientation_measured is None):
                     cameraPos_measured = robotPos_estimated
-                    cameraOrientation_measured = np.mean(angle_hist)
+                    robotOrientation_measured = np.mean(angle_hist)
                     
                 
                 angle_goal = glob.compute_angle_traj(robotPos_estimated)
@@ -145,7 +141,7 @@ async def demo():
 
             # Update the camera attributes
             cam.robotMeasuredPosition = robotPos_measured
-            cam.robotMeasuredOrientation = cameraOrientation_measured
+            cam.robotMeasuredOrientation = robotOrientation_measured
             cam.robotEstimatedPosition = robotPos_estimated
             cam.robotEstimatedOrientation = robotOrientation_estimated
             
