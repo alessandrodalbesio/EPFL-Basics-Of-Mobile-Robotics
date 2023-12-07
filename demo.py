@@ -145,13 +145,16 @@ async def demo(save_video_path=None):
                 # Actuation
                 await node.set_variables(motors_speed(motorLeft,motorRight))
                 # Save the data
+                if(camera_state == 'off'):
+                    robotPos_measured = robotPos_estimated
+                    robotOrientation_measured = robotOrientation_estimated
                 df_wheel_speeds_measured.loc[len(df_wheel_speeds_measured)] = [left_speed_measured, right_speed_measured, camera_state]
                 df_wheel_speeds_predicted.loc[len(df_wheel_speeds_predicted)] = [sp_estimated_lw, sp_estimated_rw, camera_state]
                 df_wheel_speeds_commanded.loc[len(df_wheel_speeds_commanded)] = [motorLeft, motorRight, camera_state]
-                df_pos_measured.loc[len(df_pos_measured)] = [cameraPos_measured[0], cameraPos_measured[1], camera_state]
-                df_pos_estimated.loc[len(df_pos_estimated)] = [cam.robotEstimatedPosition[0], cam.robotEstimatedPosition[1], camera_state]
-                df_orientation_measured.loc[len(df_orientation_measured)] = [cameraOrientation_measured, time(), camera_state]
-                df_orientation_estimated.loc[len(df_orientation_estimated)] = [cam.robotEstimatedOrientation, time(), camera_state]
+                df_pos_measured.loc[len(df_pos_measured)] = [robotPos_measured[0], robotPos_measured[1], camera_state]
+                df_pos_estimated.loc[len(df_pos_estimated)] = [robotPos_estimated[0], robotPos_estimated[1], camera_state]
+                df_orientation_measured.loc[len(df_orientation_measured)] = [robotOrientation_measured, time(), camera_state]
+                df_orientation_estimated.loc[len(df_orientation_estimated)] = [robotOrientation_estimated, time(), camera_state]
                     
                 time_last_sample = time()
 
@@ -178,7 +181,14 @@ async def demo(save_video_path=None):
         cam.release()
         cv2.destroyAllWindows()
             
-        
+        df_wheel_speeds_measured.to_csv('wheel_speeds_measured.csv')
+        df_wheel_speeds_predicted.to_csv('wheel_speeds_predicted.csv')
+        df_wheel_speeds_commanded.to_csv('wheel_speeds_commanded.csv')
+        df_pos_measured.to_csv('pos_measured.csv')
+        df_pos_estimated.to_csv('pos_estimated.csv')
+        df_orientation_measured.to_csv('orientation_measured.csv')
+        df_orientation_estimated.to_csv('orientation_estimated.csv')
+
         fig, ax = plt.subplots()
         fig2, ax2 = plt.subplots()
         ax.plot(df_wheel_speeds_measured['left_speed_measured'], label='left_speed_measured')
