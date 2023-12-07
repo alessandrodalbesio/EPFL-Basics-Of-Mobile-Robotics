@@ -38,14 +38,6 @@ async def demo(save_video_path=None):
         angle_hist = []
         pos_hist = []
 
-        ##### Dataframe definition #####
-        df_wheel_speeds_measured = pd.DataFrame(columns = ['left_speed_measured', 'right_speed_measured', 'camera_state'])
-        df_wheel_speeds_predicted = pd.DataFrame(columns = ['left_speed_predicted', 'right_speed_predicted', 'camera_state'])
-        df_wheel_speeds_commanded = pd.DataFrame(columns = ['left_speed_commanded', 'right_speed_commanded', 'camera_state'])
-        df_pos_measured = pd.DataFrame(columns = ['x', 'y', 'camera_state'])
-        df_pos_estimated = pd.DataFrame(columns = ['x', 'y', 'camera_state'])
-        df_orientation_measured = pd.DataFrame(columns = ['theta', 'time', 'camera_state'])
-        df_orientation_estimated = pd.DataFrame(columns = ['theta', 'time', 'camera_state'])
 
         ##### Loop #####
         while not glob.goal_reached:        
@@ -144,17 +136,6 @@ async def demo(save_video_path=None):
                 
                 # Actuation
                 await node.set_variables(motors_speed(motorLeft,motorRight))
-                # Save the data
-                if(camera_state == 'off'):
-                    robotPos_measured = robotPos_estimated
-                    robotOrientation_measured = robotOrientation_estimated
-                df_wheel_speeds_measured.loc[len(df_wheel_speeds_measured)] = [left_speed_measured, right_speed_measured, camera_state]
-                df_wheel_speeds_predicted.loc[len(df_wheel_speeds_predicted)] = [sp_estimated_lw, sp_estimated_rw, camera_state]
-                df_wheel_speeds_commanded.loc[len(df_wheel_speeds_commanded)] = [motorLeft, motorRight, camera_state]
-                df_pos_measured.loc[len(df_pos_measured)] = [robotPos_measured[0], robotPos_measured[1], camera_state]
-                df_pos_estimated.loc[len(df_pos_estimated)] = [robotPos_estimated[0], robotPos_estimated[1], camera_state]
-                df_orientation_measured.loc[len(df_orientation_measured)] = [robotOrientation_measured, time(), camera_state]
-                df_orientation_estimated.loc[len(df_orientation_estimated)] = [robotOrientation_estimated, time(), camera_state]
                     
                 time_last_sample = time()
 
@@ -180,38 +161,6 @@ async def demo(save_video_path=None):
         # Turn off the camera
         cam.release()
         cv2.destroyAllWindows()
-            
-        df_wheel_speeds_measured.to_csv('wheel_speeds_measured.csv')
-        df_wheel_speeds_predicted.to_csv('wheel_speeds_predicted.csv')
-        df_wheel_speeds_commanded.to_csv('wheel_speeds_commanded.csv')
-        df_pos_measured.to_csv('pos_measured.csv')
-        df_pos_estimated.to_csv('pos_estimated.csv')
-        df_orientation_measured.to_csv('orientation_measured.csv')
-        df_orientation_estimated.to_csv('orientation_estimated.csv')
-
-        fig, ax = plt.subplots()
-        fig2, ax2 = plt.subplots()
-        ax.plot(df_wheel_speeds_measured['left_speed_measured'], label='left_speed_measured')
-        ax2.plot(df_wheel_speeds_measured['right_speed_measured'], label='right_speed_measured')
-        ax.plot(df_wheel_speeds_predicted['left_speed_predicted'], label='left_speed_predicted')
-        ax2.plot(df_wheel_speeds_predicted['right_speed_predicted'], label='right_speed_predicted')
-        ax.plot(df_wheel_speeds_commanded['left_speed_commanded'], label='left_speed_commanded')
-        ax2.plot(df_wheel_speeds_commanded['right_speed_commanded'], label='right_speed_commanded')
-        ax.legend()
-        ax.set_title('Wheel speeds')
-        
-        
-        fig3, ax3 = plt.subplots()
-        ax3.plot(df_pos_measured['x'], df_pos_measured['y'], label='Measured position')
-        ax3.plot(df_pos_estimated['x'], df_pos_estimated['y'], label='Estimated position')
-        ax3.legend()
-        ax3.set_title('Position')
-        
-        fig4, ax4 = plt.subplots()
-        ax4.plot(df_orientation_measured['time'], df_orientation_measured['theta'], label='Measured orientation')
-        ax4.plot(df_orientation_estimated['time'], df_orientation_estimated['theta'], label='Estimated orientation')
-        ax4.legend()
-        ax4.set_title('Orientation')
         
         plt.show()
         
