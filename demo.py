@@ -16,6 +16,8 @@ async def demo():
     robotPos_estimated = robotOrientation_estimated = None
     time_start = time()
     motors_speed = lambda lm, rm: { "motor.left.target": [round(lm)], "motor.right.target": [round(rm)] }
+    #Wheel Speed Measures
+    d_wl = d_wr = 0
 
     try:
         ##### Connection to the robot #####
@@ -30,6 +32,8 @@ async def demo():
         glob = Global(map.obstacles)
         local = Local()
         cam.obstacles = map.obstacles
+        angle_hist = []
+        pos_hist = []
 
         ##### Loop #####
         while not glob.goal_reached:        
@@ -42,8 +46,8 @@ async def demo():
                 glob.find_optimal_path(start, goal)
                 
                 # Initialize the kalman filter
-                #kalman = KalmanFilter(map.convertToCm([start[0], start[1], 0])[0], (initialOrientation+2*np.pi) % 2*np.pi)
-                
+                kalman = KalmanFilter(map.convertToCm([start[0], start[1], 0])[0], (initialOrientation+2*np.pi) % 2*np.pi)
+                robotPos_estimated = np.array([start[0], start[1]])
                 # Define attributes for the real time camera display
                 cam.startPosition = start
                 cam.goalPosition = goal
@@ -63,6 +67,12 @@ async def demo():
             right_speed_measured = node["motor.right.speed"]
             robotPos_measured, robotPos_measured_cm, cameraOrientation_measured = map.cameraRobotSensing() # Robot position and orientation from the camera
 
+            if((robotPos_measured is None) or (cameraOrientation_measured is None)):
+                camera_state = 'off'
+            else:
+                camera_state = 'on'
+
+
             # Kidnapping management
             if robotPos_estimated is not None and robotPos_measured is not None and np.linalg.norm(robotPos_measured-robotPos_estimated) > KIDNAPPING_THRESH:
                 # Turn off the motors
@@ -81,26 +91,44 @@ async def demo():
                 # Position estimation
                 time_sampling = time() - time_last_sample
 
-                ## KALMAN START ##
-                #if robotPos_measured is None or cameraOrientation_measured is None:
-                #    cam_x = cam_y = cam_theta = -1
-                #else:
-                #    cam_x = robotPos_measured_cm[0]
-                #    cam_y = robotPos_measured_cm[1]
-                #    if(cameraOrientation_measured > np.pi):
-                #        cam_theta = cameraOrientation_measured - 2*np.pi
-                #    else:
-                #        cam_theta = cameraOrientation_measured
-                #[pos_estimated_x, pos_estimated_y, pos_estimated_theta] = kalman.update_kalman(left_speed_measured, right_speed_measured, '', time_sampling, np.array([cam_x, cam_y, cam_theta]))
-                ## KALMAN END ##
-
-                robotPos_estimated = robotPos_measured
-                robotOrientation_estimated = cameraOrientation_measured
-
-                #robotOrientation_estimated = pos_estimated_theta
-                #robotPos_estimated = map.convertToPx([np.array([pos_estimated_x, pos_estimated_y])])[0]
+                if((cameraPos_measured is None) or (cameraOrientation_measured is None)):
+                    cam_x = cam_y = cam_theta = -1
+                    camera_state = 'off'
+                else:
+                    if(camera_state != 'off' ):
+                        robotPos_measured_cm, cameraOrientation_measured_rad = map.cameraRobotSensing(isInCm=True) # Robot position and orientation from the camera
+                        if(not(robotPos_measured_cm is None) and not(cameraOrientation_measured_rad is None)):
+                            cam_x = robotPos_measured_cm[0]
+                            cam_y = robotPos_measured_cm[1]
+                        else:
+                            cam_x = cam_y = -1
+                            camera_state = 'off'
+                        if(not(cameraOrientation_measured_rad is None)):
+                            if((cameraOrientation_measured_rad > np.pi)):
+                                cam_theta = cameraOrientation_measured_rad - 2*np.pi
+                            else:
+                                cam_theta = cameraOrientation_measured_rad
+                time_sampling = time() - time_last_sample
+                [pos_estimated_x, pos_estimated_y, pos_estimated_theta, sp_estimated_lw, sp_estimated_rw] = kalman.update_kalman(d_wl, d_wr, left_speed_measured, right_speed_measured, camera_state, time_sampling, np.array([cam_x, cam_y, cam_theta]))
+                robotPos_estimated = np.array([pos_estimated_x, pos_estimated_y])
+                robotPos_estimated = map.convertToPx([robotPos_estimated])[0]
+                robotOrientation_estimated = pos_estimated_theta
+                if(robotOrientation_estimated < 0):
+                    robotOrientation_estimated = robotOrientation_estimated + 2*np.pi
+                angle_hist.append(robotOrientation_estimated)
+                pos_hist.append(robotPos_estimated)
+                if(len(angle_hist) > 5):
+                    angle_hist.pop(0)
+                if(len(pos_hist) > 5):
+                    pos_hist.pop(0)
 
                 # Control
+                    
+                if(cameraPos_measured is None or cameraOrientation_measured is None):
+                    cameraPos_measured = robotPos_estimated
+                    cameraOrientation_measured = np.mean(angle_hist)
+                    
+                
                 angle_goal = glob.compute_angle_traj(robotPos_estimated)
                 if local.local_obstacle(prox_horizontal_measured):
                     motorLeft,motorRight = local.local_controller(prox_horizontal_measured, robotOrientation_estimated, angle_goal)
@@ -108,8 +136,9 @@ async def demo():
                 else:
                     motorLeft = motorRight = 0
                     if not (robotPos_estimated is None or robotOrientation_estimated is None):
-                        motorLeft,motorRight = glob.global_controller(robotPos_estimated, robotOrientation_estimated)
-                
+                        motorLeft,motorRight = glob.global_controller(robotPos_estimated, robotOrientation_estimated, left_speed_measured, right_speed_measured)
+                d_wl = left_speed_measured - sp_estimated_lw
+                d_wr = right_speed_measured - sp_estimated_rw
                 # Actuation
                 await node.set_variables(motors_speed(motorLeft,motorRight))
                 time_last_sample = time()

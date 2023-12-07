@@ -207,7 +207,7 @@ class Global:
         # Return the trajectory angle
         return traj_angle
     
-    def global_controller(self, estimated_pt,estimated_angle):
+    def global_controller(self, estimated_pt,estimated_angle, measured_left, measured_right):
         """Controller which makes the robot follow the optimal global path.
         
         Args:
@@ -215,6 +215,8 @@ class Global:
             float: Current estimated angle
             np.array([x,y]): Current goal point 
             int: Index of current goal point 
+            float: Current left motor speed
+            float: Current right motor speed
         
         Returns:
             int: Left motor speed
@@ -258,12 +260,24 @@ class Global:
                     angle_diff = estimated_angle - traj_angle
 
         # Update direction of robot
-        if (abs(angle_diff) > ANGLE_THRESH):
-            motorLeft = K_ANGLE * angle_diff
-            motorRight = -K_ANGLE * angle_diff
+        if (abs(angle_diff) > 30*ANGLE_THRESH):
+            motor_speed = np.min([np.abs(K_ANGLE * angle_diff), MAX_ROT_SPEED])
+            motorLeft = motor_speed*np.sign(angle_diff)
+            motorRight = -motor_speed*np.sign(angle_diff)
         else:
             motorLeft = NOMINAL_SPEED + (K_TRAJ * abs(angle_diff) if angle_diff > 0 else 0)
             motorRight = NOMINAL_SPEED + (K_TRAJ * abs(angle_diff) if angle_diff < 0 else 0)
+
+        #Added acceleration thresholds to limit huge changes on the motor speeds
+        if(np.abs(motorLeft-measured_left)>MAX_DIFF_MOTOR_SPEED):
+            pred_left = motorLeft
+            motorLeft = measured_left + np.sign(motorLeft-measured_left)*MAX_DIFF_MOTOR_SPEED
+            motorRight = motorRight*MAX_DIFF_MOTOR_SPEED/(np.abs(pred_left-measured_left))
+        if(np.abs(motorRight-measured_right)>MAX_DIFF_MOTOR_SPEED):
+            pred_right = motorRight
+            motorRight = measured_right + np.sign(motorRight-measured_right)*MAX_DIFF_MOTOR_SPEED
+            motorLeft = motorLeft*MAX_DIFF_MOTOR_SPEED/np.abs(pred_right-measured_right)
+
 
         # Return motor speeds
         return motorLeft,motorRight
