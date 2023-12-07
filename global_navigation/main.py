@@ -99,7 +99,7 @@ class Global:
 
         # Plot the LineString objects
         for x, y in zip(x_coords_lines, y_coords_lines):
-            plt.plot(x, y, marker='o', color = 'grey',mfc = 'black')
+            plt.plot(x, y, marker='o', color = 'grey',mfc = 'black',linestyle=":")
 
         # Plot the Polygon objects with filling
         for x, y in zip(x_coords_polygons, y_coords_polygons):
