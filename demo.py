@@ -137,8 +137,8 @@ async def demo():
                     motorLeft = motorRight = 0
                     if not (robotPos_estimated is None or robotOrientation_estimated is None):
                         motorLeft,motorRight = glob.global_controller(robotPos_estimated, robotOrientation_estimated, left_speed_measured, right_speed_measured)
-                d_wl = left_speed_measured - sp_estimated_lw
-                d_wr = right_speed_measured - sp_estimated_rw
+                d_wl = motorLeft - left_speed_measured
+                d_wr = motorRight - right_speed_measured
                 # Actuation
                 await node.set_variables(motors_speed(motorLeft,motorRight))
                 time_last_sample = time()

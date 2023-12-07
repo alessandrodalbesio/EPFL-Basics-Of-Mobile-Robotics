@@ -14,6 +14,8 @@ class KalmanFilter:
         self.sigma_vy = 0.5
         self.sigma_gpstheta = 0.9
         self.speed_conv = 0.045
+        self.qv1 = 10 # Process noise Measured in Ex8 in cm2/s2
+        self.qv2 = 1 # Process noise Measured in Ex8 in cm2/s2
         
         
         self.A = np.diag([1, 1, 1, 1, 1])
@@ -31,8 +33,7 @@ class KalmanFilter:
             [0, 0, 0, 1, 0],  # Camera dx
             [0, 0, 0, 0, 1],  # Camera dy
         ])
-        self.qv = 0.0442 # Process noise Measured in Ex8 in cm2/s2
-        self.Q = np.diag([self.qv, self.qv, self.qv, self.qv, self.qv]) # Process noise covariance
+        self.Q = np.diag([self.qv1, self.qv1, self.qv1, self.qv2, self.qv2]) # Process noise covariance
         self.R = np.diag([self.sigma_gpsx**2, self.sigma_gpsy**2, self.sigma_gpstheta**2, self.sigma_vx**2, self.sigma_vy**2]) # Measurement noise covariance
         self.P = np.diag([1, 1, 1, 1, 1]) 
         self.x = [x0[0], x0[1], angle, 0, 0]
