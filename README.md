@@ -15,3 +15,5 @@ Details on the choices made and the implementation can be found in the report.
 ![](https://github.com/loufla/BOMR-17/blob/main/_report_data/readme_gifs/local_navigation.gif)
 ##### Kidnapping
 ![](https://github.com/loufla/BOMR-17/blob/main/_report_data/readme_gifs/kidnapping.gif)
+##### Camera hiding
+![](https://github.com/loufla/BOMR-17/blob/main/_report_data/readme_gifs/camera_hiding.gif)
