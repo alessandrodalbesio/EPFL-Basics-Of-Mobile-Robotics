@@ -111,10 +111,11 @@ class Global:
             plt.fill(x, y, alpha=0.3, color='green')
 
         # Plot initial an final points
-        plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10)
-        plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20)
+        plt.plot(initialPoint[0],initialPoint[1],marker='8',color='green', markersize=10, label = 'Initial point')
+        plt.plot(finalPoint[0],finalPoint[1],marker='X',color='red', markersize=20, label = 'Final point')
         plt.title('Visibility graph, with obstacles, initial, and final points')
         plt.axis('off')
+        plt.legend()
         plt.show()
 
     ## 2) Find optimal path
