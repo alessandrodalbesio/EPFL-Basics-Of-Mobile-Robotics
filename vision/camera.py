@@ -19,7 +19,7 @@ class Camera:
     """ This class implement all the method that are used to manage the camera. """
 
     ## Management methods ##
-    def __init__(self,frame_path=None,h_cm=h_cm,w_cm=w_cm,h_px=h_px,w_px=w_px,save_states=False,save_video=False,saved_video_name="demo_video"):
+    def __init__(self,frame_path=None,h_cm=h_cm,w_cm=w_cm,h_px=h_px,w_px=w_px,save_states=False,save_video=False,save_video_name="demo_video"):
         """ Constructor of the class
         
         Args:
@@ -30,7 +30,7 @@ class Camera:
             w_px (int, optional): Width of the fieldArea in px. Defaults to w_px.
             save_states (bool, optional): If True, the states will be saved and shown in the real time video. Defaults to False.
             save_video (bool, optional): If True, a video will be saved. Defaults to False.
-            saved_video_name (str, optional): Name of the saved video. Defaults to "demo_video".
+            save_video_name (str, optional): Name of the saved video. Defaults to "demo_video".
         """
         # Get the camera
         self.camera = None
@@ -64,7 +64,7 @@ class Camera:
         self.save_states = save_states
         self.save_video = save_video
         self.video_frames = []
-        self.saved_video_name = saved_video_name
+        self.save_video_name = save_video_name
 
     def fieldAreaEstimation(self):
         """ Method that estimate based on the corner markers the region of the fieldArea """
@@ -108,7 +108,7 @@ class Camera:
             fps = round(len(self.video_frames)/total_time)
             # Define the codec and create VideoWriter object in avi format
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            out = cv2.VideoWriter(f'{self.saved_video_name}.avi',fourcc, fps, (self.w_px,self.h_px))
+            out = cv2.VideoWriter(f'{self.save_video_name}.avi',fourcc, fps, (self.w_px,self.h_px))
             # Write the frames
             for frame in self.video_frames:
                 out.write(frame["frame"])
