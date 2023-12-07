@@ -8,6 +8,7 @@ from local_navigation.main import * # Import local navigation
 from vision.camera import * # Import camera
 from vision.map import * # Import map library
 from filtering.kalman_filter import * # Import Kalman filter
+from utils.tools import * # Import tools
 
 
 async def demo(save_video_path=None):
@@ -99,20 +100,17 @@ async def demo(save_video_path=None):
                 else:
                     cam_x = robotPos_measured_cm[0]
                     cam_y = robotPos_measured_cm[1]
-                    if((robotOrientation_measured > np.pi)):
-                        cam_theta = robotOrientation_measured - 2*np.pi
-                    else:
-                        cam_theta = robotOrientation_measured
-                
+                    cam_theta = conv_2pi_to_pi(robotOrientation_measured)
+
                 # Kalman filter
                 [pos_estimated_x, pos_estimated_y, pos_estimated_theta, sp_estimated_lw, sp_estimated_rw] = kalman.update_kalman(d_wl, d_wr, left_speed_measured, right_speed_measured, camera_state, time_sampling, np.array([cam_x, cam_y, cam_theta]))
                 robotPos_estimated = np.array([pos_estimated_x, pos_estimated_y])
                 robotPos_estimated = map.convertToPx([robotPos_estimated])[0]
                 robotOrientation_estimated = pos_estimated_theta
-                if(robotOrientation_estimated < 0):
-                    robotOrientation_estimated = robotOrientation_estimated + 2*np.pi
+                
                 angle_hist.append(robotOrientation_estimated)
                 pos_hist.append(robotPos_estimated)
+                
                 if(len(angle_hist) > 5):
                     angle_hist.pop(0)
                 if(len(pos_hist) > 5):
@@ -121,10 +119,9 @@ async def demo(save_video_path=None):
                 # Control
                     
                 if(robotPos_measured is None or robotOrientation_measured is None):
-                    cameraPos_measured = robotPos_estimated
                     robotOrientation_estimated = np.mean(angle_hist)
                     
-                
+                robotOrientation_estimated = conv_pi_to_2pi(robotOrientation_estimated)
                 angle_goal = glob.compute_angle_traj(robotPos_estimated)
                 if local.local_obstacle(prox_horizontal_measured):
                     motorLeft,motorRight = local.local_controller(prox_horizontal_measured, robotOrientation_estimated, angle_goal)
@@ -133,8 +130,8 @@ async def demo(save_video_path=None):
                     motorLeft = motorRight = 0
                     if not (robotPos_estimated is None or robotOrientation_estimated is None):
                         motorLeft,motorRight = glob.global_controller(robotPos_estimated, robotOrientation_estimated, left_speed_measured, right_speed_measured)
-                d_wl = motorLeft - left_speed_measured
-                d_wr = motorRight - right_speed_measured
+                d_wl = motorLeft - sp_estimated_lw
+                d_wr = motorRight - sp_estimated_rw
                 # Actuation
                 await node.set_variables(motors_speed(motorLeft,motorRight))
                 time_last_sample = time()
