@@ -8,7 +8,8 @@ from local_navigation.main import * # Import local navigation
 from vision.camera import * # Import camera
 from vision.map import * # Import map library
 from filtering.kalman_filter import * # Import Kalman filter
-
+from utils.tools import * # Import tools
+import pandas as pd
 
 async def demo(save_video_path=None):
     save_video = save_video_path is not None
@@ -36,6 +37,15 @@ async def demo(save_video_path=None):
         cam.obstacles = map.obstacles
         angle_hist = []
         pos_hist = []
+
+        ##### Dataframe definition #####
+        df_wheel_speeds_measured = pd.DataFrame(columns = ['left_speed_measured', 'right_speed_measured', 'camera_state'])
+        df_wheel_speeds_predicted = pd.DataFrame(columns = ['left_speed_predicted', 'right_speed_predicted', 'camera_state'])
+        df_wheel_speeds_commanded = pd.DataFrame(columns = ['left_speed_commanded', 'right_speed_commanded', 'camera_state'])
+        df_pos_measured = pd.DataFrame(columns = ['x', 'y', 'camera_state'])
+        df_pos_estimated = pd.DataFrame(columns = ['x', 'y', 'camera_state'])
+        df_orientation_measured = pd.DataFrame(columns = ['theta', 'time', 'camera_state'])
+        df_orientation_estimated = pd.DataFrame(columns = ['theta', 'time', 'camera_state'])
 
         ##### Loop #####
         while not glob.goal_reached:        
@@ -99,20 +109,17 @@ async def demo(save_video_path=None):
                 else:
                     cam_x = robotPos_measured_cm[0]
                     cam_y = robotPos_measured_cm[1]
-                    if((robotOrientation_measured > np.pi)):
-                        cam_theta = robotOrientation_measured - 2*np.pi
-                    else:
-                        cam_theta = robotOrientation_measured
-                
+                    cam_theta = conv_2pi_to_pi(robotOrientation_measured)
+
                 # Kalman filter
                 [pos_estimated_x, pos_estimated_y, pos_estimated_theta, sp_estimated_lw, sp_estimated_rw] = kalman.update_kalman(d_wl, d_wr, left_speed_measured, right_speed_measured, camera_state, time_sampling, np.array([cam_x, cam_y, cam_theta]))
                 robotPos_estimated = np.array([pos_estimated_x, pos_estimated_y])
                 robotPos_estimated = map.convertToPx([robotPos_estimated])[0]
                 robotOrientation_estimated = pos_estimated_theta
-                if(robotOrientation_estimated < 0):
-                    robotOrientation_estimated = robotOrientation_estimated + 2*np.pi
+                
                 angle_hist.append(robotOrientation_estimated)
                 pos_hist.append(robotPos_estimated)
+                
                 if(len(angle_hist) > 5):
                     angle_hist.pop(0)
                 if(len(pos_hist) > 5):
@@ -121,10 +128,9 @@ async def demo(save_video_path=None):
                 # Control
                     
                 if(robotPos_measured is None or robotOrientation_measured is None):
-                    cameraPos_measured = robotPos_estimated
                     robotOrientation_estimated = np.mean(angle_hist)
                     
-                
+                robotOrientation_estimated = conv_pi_to_2pi(robotOrientation_estimated)
                 angle_goal = glob.compute_angle_traj(robotPos_estimated)
                 if local.local_obstacle(prox_horizontal_measured):
                     motorLeft,motorRight = local.local_controller(prox_horizontal_measured, robotOrientation_estimated, angle_goal)
@@ -133,10 +139,20 @@ async def demo(save_video_path=None):
                     motorLeft = motorRight = 0
                     if not (robotPos_estimated is None or robotOrientation_estimated is None):
                         motorLeft,motorRight = glob.global_controller(robotPos_estimated, robotOrientation_estimated, left_speed_measured, right_speed_measured)
-                d_wl = motorLeft - left_speed_measured
-                d_wr = motorRight - right_speed_measured
+                d_wl = motorLeft - sp_estimated_lw
+                d_wr = motorRight - sp_estimated_rw
+                
                 # Actuation
                 await node.set_variables(motors_speed(motorLeft,motorRight))
+                # Save the data
+                df_wheel_speeds_measured.loc[len(df_wheel_speeds_measured)] = [left_speed_measured, right_speed_measured, camera_state]
+                df_wheel_speeds_predicted.loc[len(df_wheel_speeds_predicted)] = [sp_estimated_lw, sp_estimated_rw, camera_state]
+                df_wheel_speeds_commanded.loc[len(df_wheel_speeds_commanded)] = [motorLeft, motorRight, camera_state]
+                df_pos_measured.loc[len(df_pos_measured)] = [cameraPos_measured[0], cameraPos_measured[1], camera_state]
+                df_pos_estimated.loc[len(df_pos_estimated)] = [cam.robotEstimatedPosition[0], cam.robotEstimatedPosition[1], camera_state]
+                df_orientation_measured.loc[len(df_orientation_measured)] = [cameraOrientation_measured, time(), camera_state]
+                df_orientation_estimated.loc[len(df_orientation_estimated)] = [cam.robotEstimatedOrientation, time(), camera_state]
+                    
                 time_last_sample = time()
 
             # Update the camera attributes
@@ -161,3 +177,31 @@ async def demo(save_video_path=None):
         # Turn off the camera
         cam.release()
         cv2.destroyAllWindows()
+            
+        
+        fig, ax = plt.subplots()
+        fig2, ax2 = plt.subplots()
+        ax.plot(df_wheel_speeds_measured['left_speed_measured'], label='left_speed_measured')
+        ax2.plot(df_wheel_speeds_measured['right_speed_measured'], label='right_speed_measured')
+        ax.plot(df_wheel_speeds_predicted['left_speed_predicted'], label='left_speed_predicted')
+        ax2.plot(df_wheel_speeds_predicted['right_speed_predicted'], label='right_speed_predicted')
+        ax.plot(df_wheel_speeds_commanded['left_speed_commanded'], label='left_speed_commanded')
+        ax2.plot(df_wheel_speeds_commanded['right_speed_commanded'], label='right_speed_commanded')
+        ax.legend()
+        ax.set_title('Wheel speeds')
+        
+        
+        fig3, ax3 = plt.subplots()
+        ax3.plot(df_pos_measured['x'], df_pos_measured['y'], label='Measured position')
+        ax3.plot(df_pos_estimated['x'], df_pos_estimated['y'], label='Estimated position')
+        ax3.legend()
+        ax3.set_title('Position')
+        
+        fig4, ax4 = plt.subplots()
+        ax4.plot(df_orientation_measured['time'], df_orientation_measured['theta'], label='Measured orientation')
+        ax4.plot(df_orientation_estimated['time'], df_orientation_estimated['theta'], label='Estimated orientation')
+        ax4.legend()
+        ax4.set_title('Orientation')
+        
+        plt.show()
+        

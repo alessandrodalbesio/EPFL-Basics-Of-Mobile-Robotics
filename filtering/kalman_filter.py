@@ -10,19 +10,19 @@ class KalmanFilter:
         self.wheelbase = 8.9 #Measured on robot
         self.sigma_gpsx = 0.1
         self.sigma_gpsy = 0.1
-        self.sigma_vx = 0.5
-        self.sigma_vy = 0.5
+        self.sigma_vx = 1.5
+        self.sigma_vy = 1.5
         self.sigma_gpstheta = 0.9
         self.speed_conv = 0.045
         self.qv1 = 10 # Process noise Measured in Ex8 in cm2/s2
-        self.qv2 = 1 # Process noise Measured in Ex8 in cm2/s2
+        self.qv2 = 0.0442 # Process noise Measured in Ex8 in cm2/s2
         
         
         self.A = np.diag([1, 1, 1, 1, 1])
         self.B = np.array([
             [1, 0],
             [0, 1],
-            [1.0 / self.wheelbase, -1.0 / self.wheelbase],
+            [-1.0 / self.wheelbase, 1.0 / self.wheelbase],
             [1, 0],
             [0, 1],
         ])
@@ -45,7 +45,6 @@ class KalmanFilter:
         if(dt == None):
             return self.x[0], self.x[1], self.x[2]
         self.dt = dt
-        angle = self.x[2]
         if(((camera_data[0] == -1) and (camera_data[1] == -1) and (camera_data[2] == -1))):
             camera_state = 'off'
         prev_x = self.x
@@ -56,7 +55,6 @@ class KalmanFilter:
             [0, 0, 0, 1, 0],
             [0, 0, 0, 0, 1],
         ])
-
         self.B = np.array([
             [0.5 * self.dt * np.cos(self.x[2])*self.speed_conv, 0.5 * self.dt * np.cos(self.x[2])*self.speed_conv],
             [0.5 * self.dt * np.sin(self.x[2])*self.speed_conv, 0.5 * self.dt * np.sin(self.x[2])*self.speed_conv],
@@ -69,6 +67,10 @@ class KalmanFilter:
         prev_x = self.x
         self.x = self.A.dot(self.x) + np.dot(self.B,u)
         pred_x = self.x
+        if(self.x[2] > np.pi):
+            self.x[2] = self.x[2] - 2*np.pi
+        elif(self.x[2] < -np.pi):
+            self.x[2] = self.x[2] + 2*np.pi
 
         if(camera_state == 'on'):
             # Prediction covariance
@@ -95,8 +97,11 @@ class KalmanFilter:
             self.K = self.P.dot(self.H.T).dot(np.linalg.inv(self.S))
             self.z = [pred_x[0], pred_x[1], pred_x[2], wheel_speed_left_meas, wheel_speed_right_meas]  # Actual sensor measurements, with camera sending 0, 0, 0)
             self.x = pred_x + self.K.dot(self.z - pred_x)
-            self.x = self.x
-        
+
+        if(self.x[2] > np.pi):
+            self.x[2] = self.x[2] - 2*np.pi
+        elif(self.x[2] < -np.pi):
+            self.x[2] = self.x[2] + 2*np.pi
         expected_change = pred_x - prev_x
         actual_change = self.z - pred_x
         # Extract final estimates

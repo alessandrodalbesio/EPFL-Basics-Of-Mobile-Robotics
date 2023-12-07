@@ -1,5 +1,32 @@
 import numpy as np
 
+def conv_2pi_to_pi(angle):
+    """Function which converts an angle in range [0;2*pi] to range [-pi;pi].
+    
+    Args:
+        angle: The angle to convert
+    
+    Returns:
+        angle: The converted angle
+    """
+    if angle > np.pi:
+        angle = angle - 2 * np.pi
+    return angle
+
+def conv_pi_to_2pi(angle):
+    """Function which converts an angle in range [-pi;pi] to range [0;2*pi].
+    
+    Args:
+        angle: The angle to convert
+    
+    Returns:
+        angle: The converted angle
+    """
+    if angle < 0:
+        angle = angle + 2 * np.pi
+    return angle
+
+
 def angle_diff_rel(angle_goal, angle_current):
     """Function which gives the delta angle in range [-pi;pi].
     
