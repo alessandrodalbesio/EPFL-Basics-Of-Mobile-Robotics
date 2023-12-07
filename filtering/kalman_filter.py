@@ -32,9 +32,9 @@ class KalmanFilter:
             [0, 0, 0, 0, 1],  # Camera dy
         ])
         self.qv = 0.0442 # Process noise Measured in Ex8 in cm2/s2
-        self.Q = np.diag([self.qv, self.qv, self.qv, self.qv, self.qv])
-        self.R = np.diag([self.sigma_gpsx**2, self.sigma_gpsy**2, self.sigma_gpstheta**2, self.sigma_vx**2, self.sigma_vy**2])
-        self.P = np.diag([1, 1, 1, 1, 1])
+        self.Q = np.diag([self.qv, self.qv, self.qv, self.qv, self.qv]) # Process noise covariance
+        self.R = np.diag([self.sigma_gpsx**2, self.sigma_gpsy**2, self.sigma_gpstheta**2, self.sigma_vx**2, self.sigma_vy**2]) # Measurement noise covariance
+        self.P = np.diag([1, 1, 1, 1, 1]) 
         self.x = [x0[0], x0[1], angle, 0, 0]
     
     def robot_speed(self, speed_left, speed_right):
@@ -75,7 +75,7 @@ class KalmanFilter:
             self.P = (self.A.dot(self.P).dot(self.A.T) + self.Q)
 
             # Update
-                #Intermediate Matric
+                #Intermediate Matrix
             self.S = self.H.dot(self.P).dot(self.H.T) + self.R
                 #Update Kalman Gain
             self.K = self.P.dot(self.H.T).dot(np.linalg.inv(self.S))

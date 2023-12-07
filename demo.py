@@ -126,7 +126,7 @@ async def demo():
                     
                 if(cameraPos_measured is None or cameraOrientation_measured is None):
                     cameraPos_measured = robotPos_estimated
-                    cameraOrientation_measured = np.mean(angle_hist)
+                    robotOrientation_estimated = np.mean(angle_hist)
                     
                 
                 angle_goal = glob.compute_angle_traj(robotPos_estimated)
