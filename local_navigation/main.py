@@ -13,15 +13,15 @@ class Local:
         obstacle_detected = max(prox_horizontal) > DIST_THRESH_LOCAL
         if(obstacle_detected):
             self.active_avoidance = True
+            self.__calculate_angle_teta(angle_current, angle_goal)
         #leave local avoidance if no obstacle detected for a certain time
         elif(self.active_avoidance):
             if(self.last_obstacle_time == 0):
                 self.last_obstacle_time = time()
             elif(time - self.last_obstacle_time > LOCAL_AVOIDANCE_DELAY):
                 self.last_obstacle_time = 0
-                self.active_avoidance = False
-                
-        self.__calculate_angle_teta(angle_current, angle_goal)
+                return False       
+            self.__calculate_angle_teta(angle_current, angle_goal)
 
         return self.active_avoidance
     
